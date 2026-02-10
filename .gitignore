@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Rust / Tauri build artifacts
+src-tauri/target/
+
+# macOS
+.DS_Store
+
+# Dist folder (built from source files)
+dist/

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyntricaVIZ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="dark">
+
+  <!-- Upload Overlay -->
+  <div id="upload-overlay">
+    <div id="drop-zone">
+      <svg class="drop-icon" viewBox="0 0 80 80" width="80" height="80">
+        <circle cx="25" cy="40" r="6" fill="none" stroke="#6366f1" stroke-width="2"/>
+        <circle cx="55" cy="25" r="6" fill="none" stroke="#4fc3f7" stroke-width="2"/>
+        <circle cx="55" cy="55" r="6" fill="none" stroke="#81c784" stroke-width="2"/>
+        <line x1="30" y1="38" x2="49" y2="27" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <line x1="30" y1="42" x2="49" y2="53" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <line x1="55" y1="31" x2="55" y2="49" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,2"/>
+      </svg>
+      <div class="brand-logo">
+        <img src="cyntrica-logo.svg" alt="Cyntrica" class="cyntrica-logo">
+        <span class="viz-label">VIZ</span>
+      </div>
+      <p class="drop-text">Drop a <strong>.pcap</strong> or <strong>.pcapng</strong> file here</p>
+      <p class="drop-or">or</p>
+      <label class="btn-upload">
+        Choose File
+        <input type="file" id="file-input" accept=".pcap,.pcapng,.cap" hidden>
+      </label>
+      <p class="drop-hint">All parsing is done locally in your browser. No data is uploaded.</p>
+      <div id="compare-upload" class="hidden">
+        <p class="drop-or">Compare with another capture:</p>
+        <label class="btn-upload btn-secondary">
+          Choose Second File
+          <input type="file" id="file-input-compare" accept=".pcap,.pcapng,.cap" hidden>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="hidden">
+    <div class="spinner"></div>
+    <p id="loading-status">Parsing packets...</p>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="dashboard" class="hidden">
+    <header id="app-header">
+      <div class="header-left">
+        <div class="brand-logo brand-logo-sm">
+          <img src="cyntrica-logo.svg" alt="Cyntrica" class="cyntrica-logo">
+          <span class="viz-label">VIZ</span>
+        </div>
+        <div id="file-info"></div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-stats" title="Protocol statistics dashboard (D)">Stats</button>
+        <button id="btn-extractions" title="File & credential extraction (X)">Extractions</button>
+        <button id="btn-conversations" title="View conversation table (C)">Conversations</button>
+        <button id="btn-flow" title="Flow/sequence diagram (W)">Flow</button>
+        <button id="btn-iograph" title="IO throughput graph (I)">IO Graph</button>
+        <button id="btn-latency" title="Latency & RTT analysis (L)">Latency</button>
+        <button id="btn-notes" title="View annotations (N)">Notes</button>
+        <button id="btn-coloring" title="Packet coloring rules">Colors</button>
+        <button id="btn-ioc" title="Threat intelligence IoC matching (Ctrl+I)">IoC</button>
+        <button id="btn-alerts" title="Alert rules engine (A)">Alerts</button>
+        <button id="btn-connstate" title="TCP connection state machine (M)">Conn State</button>
+        <button id="btn-compare" title="Compare with another capture">Compare</button>
+        <button id="btn-export-csv" title="Export filtered data as CSV">CSV</button>
+        <button id="btn-export-json" title="Export filtered data as JSON">JSON</button>
+        <button id="btn-theme" title="Toggle theme (T)">Theme</button>
+        <button id="btn-reset-filters" title="Clear all filters (Esc)">Reset</button>
+        <button id="btn-new-file" title="Load a different capture file">New File</button>
+      </div>
+    </header>
+
+    <div id="panels">
+      <div class="panel" id="panel-network">
+        <div class="panel-header">
+          <h2>Network Graph</h2>
+          <div class="panel-header-actions">
+            <div class="layer-toggle" id="layer-toggle">
+              <button class="layer-btn" data-layer="L2" title="MAC layer">L2</button>
+              <button class="layer-btn active" data-layer="L3" title="IP layer">L3</button>
+              <button class="layer-btn" data-layer="L4" title="Port layer">L4</button>
+            </div>
+            <span class="panel-badge" id="host-count"></span>
+            <div class="host-limit-control" id="host-limit-control">
+              <label class="host-limit-label" for="host-limit-slider">Hosts:</label>
+              <input type="range" id="host-limit-slider" min="10" max="500" value="50" step="10" title="Max hosts to display">
+              <span id="host-limit-value" class="host-limit-value">50</span>
+            </div>
+            <button class="btn-icon btn-expand" title="Expand (or press F)">&#x26F6;</button>
+            <button class="btn-icon btn-screenshot" title="Export as PNG">&#x1F4F7;</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <svg id="network-graph"></svg>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-timeline">
+        <div class="panel-header">
+          <h2>Timeline</h2>
+          <div class="panel-header-actions">
+            <span class="panel-badge" id="timeline-info"></span>
+            <button class="btn-icon" id="btn-heatmap-toggle" title="Toggle heatmap mode">&#x1F525;</button>
+            <button class="btn-icon btn-expand" title="Expand (or press F)">&#x26F6;</button>
+            <button class="btn-icon btn-screenshot" title="Export as PNG">&#x1F4F7;</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <canvas id="timeline-canvas"></canvas>
+          <svg id="timeline-svg"></svg>
+          <svg id="timeline-brush"></svg>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-protocols">
+        <div class="panel-header">
+          <h2>Protocol Breakdown</h2>
+          <div class="panel-header-actions">
+            <button class="btn-icon btn-expand" title="Expand (or press F)">&#x26F6;</button>
+            <button class="btn-icon btn-screenshot" title="Export as PNG">&#x1F4F7;</button>
+          </div>
+        </div>
+        <div class="panel-body protocol-charts">
+          <div class="chart-container">
+            <svg id="protocol-pie"></svg>
+          </div>
+          <div class="chart-container">
+            <svg id="protocol-bar"></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-table">
+        <div class="panel-header">
+          <h2>Packets</h2>
+          <div class="table-controls">
+            <div class="filter-input-wrapper">
+              <input type="text" id="table-search" placeholder="Filter: ip.src == x.x.x.x or text search (Ctrl+F)" autocomplete="off" spellcheck="false">
+              <div id="filter-error" class="filter-error hidden"></div>
+              <div id="filter-autocomplete" class="filter-dropdown hidden"></div>
+            </div>
+            <select id="table-protocol-filter">
+              <option value="">All Protocols</option>
+            </select>
+            <label class="checkbox-label" title="Show only anomalous packets">
+              <input type="checkbox" id="table-anomaly-filter"> Anomalies
+            </label>
+            <label class="checkbox-label" title="Show only bookmarked packets">
+              <input type="checkbox" id="table-bookmark-filter"> Starred
+            </label>
+            <span id="table-packet-count">0 packets</span>
+          </div>
+          <div class="panel-header-actions">
+            <button class="btn-icon btn-expand" title="Expand (or press F)">&#x26F6;</button>
+          </div>
+        </div>
+        <div class="table-header-row">
+          <div class="col col-star" title="Bookmark"></div>
+          <div class="col col-note" title="Notes"></div>
+          <div class="col col-no" data-sort="number">#</div>
+          <div class="col col-time" data-sort="relativeTime">Time</div>
+          <div class="col col-src" data-sort="srcIP">Source</div>
+          <div class="col col-dst" data-sort="dstIP">Destination</div>
+          <div class="col col-proto" data-sort="protocol">Protocol</div>
+          <div class="col col-len" data-sort="originalLength">Length</div>
+          <div class="col col-info" data-sort="info">Info</div>
+        </div>
+        <div id="table-body"></div>
+      </div>
+    </div>
+
+    <!-- Packet Detail + Hex Dump Pane (bottom drawer) -->
+    <div id="packet-detail-pane" class="hidden">
+      <div class="detail-header">
+        <h3>Packet #<span id="detail-packet-num"></span></h3>
+        <div class="detail-actions">
+          <button id="btn-diff" class="btn-small hidden" title="Compare with other selected packet">Diff</button>
+          <button id="btn-follow-stream" class="btn-small" title="Follow TCP Stream (S)">Follow Stream</button>
+          <button id="btn-close-detail" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div id="detail-layers" class="detail-section"></div>
+        <div id="detail-hex" class="detail-section">
+          <div class="hex-header">Hex Dump</div>
+          <pre id="hex-dump"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TCP Stream Modal -->
+  <div id="stream-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>TCP Stream</h2>
+        <div class="modal-header-actions">
+          <span id="stream-info"></span>
+          <button id="btn-close-stream" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <pre id="stream-content"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conversation Table Modal -->
+  <div id="conversations-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Conversations</h2>
+        <button id="btn-close-conversations" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <table id="conversations-table">
+          <thead>
+            <tr>
+              <th>Address A</th>
+              <th>Address B</th>
+              <th>Packets</th>
+              <th>Bytes</th>
+              <th>Duration</th>
+              <th>Protocols</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compare Modal -->
+  <div id="compare-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Capture Comparison</h2>
+        <button id="btn-close-compare" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body compare-body">
+        <div id="compare-left" class="compare-side"></div>
+        <div id="compare-right" class="compare-side"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GeoIP Map Modal -->
+  <div id="geoip-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>GeoIP Map</h2>
+        <button id="btn-close-geoip" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <canvas id="geoip-canvas" width="900" height="450"></canvas>
+        <div id="geoip-legend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Protocol Stats Modal -->
+  <div id="stats-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Protocol Statistics</h2>
+        <button id="btn-close-stats" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-tabs">
+          <button class="stats-tab active" data-tab="general">General</button>
+          <button class="stats-tab" data-tab="tcp">TCP</button>
+          <button class="stats-tab" data-tab="dns">DNS</button>
+          <button class="stats-tab" data-tab="http">HTTP</button>
+        </div>
+        <div id="stats-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extraction Modal -->
+  <div id="extraction-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>File & Credential Extraction</h2>
+        <button id="btn-close-extraction" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <div id="extraction-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Latency Modal -->
+  <div id="latency-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Latency & RTT Analysis</h2>
+        <button id="btn-close-latency" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <div id="latency-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow/Sequence Diagram Modal -->
+  <div id="sequence-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Flow / Sequence Diagram</h2>
+        <div class="modal-header-actions">
+          <select id="seq-host-a" class="seq-host-select"><option value="">Host A (auto)</option></select>
+          <span class="seq-arrow">&harr;</span>
+          <select id="seq-host-b" class="seq-host-select"><option value="">Host B (auto)</option></select>
+          <button id="btn-seq-refresh" class="btn-small">Refresh</button>
+          <button id="btn-close-sequence" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body seq-body">
+        <svg id="sequence-svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- IO Graph Modal -->
+  <div id="iograph-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>IO Graph</h2>
+        <div class="modal-header-actions">
+          <div class="io-controls">
+            <select id="io-metric">
+              <option value="packets">Packets/sec</option>
+              <option value="bytes">Bytes/sec</option>
+            </select>
+            <select id="io-interval">
+              <option value="100">100ms</option>
+              <option value="500">500ms</option>
+              <option value="1000" selected>1s</option>
+              <option value="5000">5s</option>
+            </select>
+          </div>
+          <button id="btn-close-iograph" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <svg id="iograph-svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Packet Diff Modal -->
+  <div id="diff-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Packet Diff</h2>
+        <div class="modal-header-actions">
+          <span id="diff-info"></span>
+          <button id="btn-close-diff" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="diff-fields" class="diff-fields"></div>
+        <div class="diff-hex-container">
+          <div class="diff-hex-side">
+            <div class="diff-hex-label" id="diff-label-a">Packet A</div>
+            <pre id="diff-hex-a" class="diff-hex"></pre>
+          </div>
+          <div class="diff-hex-side">
+            <div class="diff-hex-label" id="diff-label-b">Packet B</div>
+            <pre id="diff-hex-b" class="diff-hex"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes Modal -->
+  <div id="notes-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Annotations</h2>
+        <button id="btn-close-notes" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <div id="notes-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coloring Rules Modal -->
+  <div id="coloring-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Coloring Rules</h2>
+        <button id="btn-close-coloring" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="coloring-presets">
+          <label>Profile:</label>
+          <select id="coloring-profile">
+            <option value="default">Default (Protocol)</option>
+            <option value="security">Security</option>
+            <option value="web">Web</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div id="coloring-rules-list"></div>
+        <button id="btn-add-rule" class="btn-small btn-add-rule">+ Add Rule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IoC Matching Modal -->
+  <div id="ioc-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Threat Intelligence - IoC Matching</h2>
+        <div class="modal-header-actions">
+          <span id="ioc-match-count" class="panel-badge"></span>
+          <button id="btn-close-ioc" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="ioc-input-section">
+          <label class="ioc-label">Paste IoC list (IPs, domains, one per line):</label>
+          <textarea id="ioc-input" rows="5" placeholder="192.168.1.100&#10;malware-c2.evil.com&#10;10.0.0.50&#10;badactor.net"></textarea>
+          <div class="ioc-actions">
+            <button id="btn-ioc-scan" class="btn-small">Scan Capture</button>
+            <button id="btn-ioc-clear" class="btn-small">Clear</button>
+            <span id="ioc-status" class="panel-badge"></span>
+          </div>
+        </div>
+        <div id="ioc-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert Rules Engine Modal -->
+  <div id="alerts-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>Alert Rules Engine</h2>
+        <div class="modal-header-actions">
+          <button id="btn-alerts-run" class="btn-small">Run All Rules</button>
+          <button id="btn-close-alerts" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="alert-rules-config">
+          <div class="alert-rules-list" id="alert-rules-list"></div>
+          <button id="btn-add-alert-rule" class="btn-small btn-add-rule">+ Add Rule</button>
+        </div>
+        <div id="alert-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection State Machine Modal -->
+  <div id="connstate-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>TCP Connection State Machine</h2>
+        <div class="modal-header-actions">
+          <select id="connstate-filter" class="seq-host-select">
+            <option value="all">All Connections</option>
+            <option value="incomplete">Incomplete Handshakes</option>
+            <option value="reset">RST Connections</option>
+            <option value="halfopen">Half-Open</option>
+          </select>
+          <button id="btn-close-connstate" class="btn-small">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="connstate-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="tooltip" class="hidden"></div>
+
+  <!-- Keyboard shortcuts help -->
+  <div id="shortcuts-help" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Keyboard Shortcuts</h2>
+        <button id="btn-close-shortcuts" class="btn-small">Close</button>
+      </div>
+      <div class="modal-body shortcuts-list">
+        <div><kbd>?</kbd> Show shortcuts</div>
+        <div><kbd>Esc</kbd> Clear filters / Close modal</div>
+        <div><kbd>Ctrl+F</kbd> Focus search</div>
+        <div><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate packets</div>
+        <div><kbd>Enter</kbd> Open packet details</div>
+        <div><kbd>B</kbd> Toggle bookmark</div>
+        <div><kbd>F</kbd> Toggle fullscreen panel</div>
+        <div><kbd>S</kbd> Follow TCP stream</div>
+        <div><kbd>G</kbd> Open GeoIP map</div>
+        <div><kbd>C</kbd> Conversations</div>
+        <div><kbd>T</kbd> Toggle theme</div>
+        <div><kbd>D</kbd> Protocol stats</div>
+        <div><kbd>X</kbd> Extractions</div>
+        <div><kbd>W</kbd> Flow diagram</div>
+        <div><kbd>I</kbd> IO Graph</div>
+        <div><kbd>L</kbd> Latency analysis</div>
+        <div><kbd>N</kbd> Notes / Annotations</div>
+        <div><kbd>A</kbd> Alert Rules Engine</div>
+        <div><kbd>M</kbd> Connection State Machine</div>
+        <div><kbd>H</kbd> Toggle Heatmap Timeline</div>
+        <div><kbd>1-4</kbd> Focus panel</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note Popover (shared, positioned dynamically) -->
+  <div id="note-popover" class="note-popover hidden">
+    <textarea id="note-text" placeholder="Add a note..." rows="3"></textarea>
+    <div class="note-popover-actions">
+      <button id="note-save" class="btn-small">Save</button>
+      <button id="note-delete" class="btn-small">Delete</button>
+      <button id="note-cancel" class="btn-small">Cancel</button>
+    </div>
+  </div>
+
+  <!-- S4: Pinned to exact version for SRI hash stability -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+  <script src="pcap-parser.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

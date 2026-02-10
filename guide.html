@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyntricaVIZ v0.1 — User Guide</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-code: #151f32;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #6366f1;
+      --accent-soft: rgba(99, 102, 241, 0.12);
+      --border: #334155;
+      --green: #22c55e;
+      --red: #ef4444;
+      --orange: #f59e0b;
+      --blue: #4fc3f7;
+      --purple: #a855f7;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    /* ===== Layout ===== */
+    .page {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ===== Sidebar Nav ===== */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 100;
+      padding: 24px 0;
+    }
+
+    .sidebar-brand {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .sidebar-brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-brand .version {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .nav-group {
+      margin-bottom: 6px;
+    }
+
+    .nav-group-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 8px 20px 4px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 4px 20px 4px 28px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: var(--accent-soft);
+      border-left-color: var(--accent);
+    }
+
+    /* ===== Main Content ===== */
+    .main {
+      flex: 1;
+      margin-left: 280px;
+      max-width: 860px;
+      padding: 40px 48px 80px;
+    }
+
+    /* ===== Typography ===== */
+    h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-top: 56px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      scroll-margin-top: 24px;
+    }
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-top: 32px;
+      margin-bottom: 10px;
+      color: var(--blue);
+      scroll-margin-top: 24px;
+    }
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-top: 20px;
+      margin-bottom: 6px;
+      color: var(--text-dim);
+    }
+
+    p { margin-bottom: 12px; }
+    .subtitle { color: var(--text-dim); font-size: 1rem; margin-bottom: 32px; }
+
+    ul, ol { margin-bottom: 12px; padding-left: 24px; }
+    li { margin-bottom: 4px; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    strong { color: var(--text); }
+
+    /* ===== Code ===== */
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85em;
+      background: var(--bg-code);
+      color: var(--blue);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text-dim);
+    }
+
+    /* ===== Kbd ===== */
+    kbd {
+      display: inline-block;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-family: 'SF Mono', monospace;
+      font-size: 0.8em;
+      color: var(--text);
+      line-height: 1.6;
+      white-space: nowrap;
+    }
+
+    /* ===== Tables ===== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border-bottom: 2px solid var(--border);
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:hover td { background: rgba(99, 102, 241, 0.04); }
+
+    /* ===== Cards ===== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: var(--accent);
+    }
+
+    .card p { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 4px; }
+
+    /* ===== Feature grid ===== */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .feature-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .feature-item .feat-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+
+    .feature-item .feat-desc {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+
+    .feature-item kbd { font-size: 0.7em; margin-left: 4px; }
+
+    /* ===== Callouts ===== */
+    .callout {
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      border-left: 4px solid;
+    }
+
+    .callout-tip {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: var(--green);
+    }
+
+    .callout-warn {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: var(--orange);
+    }
+
+    .callout-info {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: var(--accent);
+    }
+
+    .callout-danger {
+      background: rgba(168, 85, 247, 0.08);
+      border-color: var(--purple);
+    }
+
+    .callout-label {
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .callout-tip .callout-label { color: var(--green); }
+    .callout-warn .callout-label { color: var(--orange); }
+    .callout-info .callout-label { color: var(--accent); }
+    .callout-danger .callout-label { color: var(--purple); }
+
+    /* ===== Color swatches ===== */
+    .swatch {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 4px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    /* ===== TOC numbering ===== */
+    .toc-num {
+      display: inline-block;
+      min-width: 22px;
+      color: var(--text-muted);
+      font-size: 0.8em;
+    }
+
+    /* ===== Hero ===== */
+    .hero {
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-size: 2.2rem;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ===== Back to top ===== */
+    .back-top {
+      display: inline-block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 960px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 24px 20px 60px; }
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+<!-- ===== Sidebar ===== -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h1>CyntricaVIZ</h1>
+    <div class="version">User Guide &mdash; v0.1</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Getting Started</div>
+    <a class="nav-link" href="#overview"><span class="toc-num">1.</span> Overview</a>
+    <a class="nav-link" href="#quickstart"><span class="toc-num">2.</span> Quick Start</a>
+    <a class="nav-link" href="#file-formats"><span class="toc-num">3.</span> Supported Files</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Dashboard Panels</div>
+    <a class="nav-link" href="#network-graph"><span class="toc-num">4.</span> Network Graph</a>
+    <a class="nav-link" href="#timeline"><span class="toc-num">5.</span> Timeline &amp; Heatmap</a>
+    <a class="nav-link" href="#protocol-charts"><span class="toc-num">6.</span> Protocol Charts</a>
+    <a class="nav-link" href="#packet-table"><span class="toc-num">7.</span> Packet Table</a>
+    <a class="nav-link" href="#detail-pane"><span class="toc-num">8.</span> Packet Detail &amp; Hex</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Filtering &amp; Search</div>
+    <a class="nav-link" href="#display-filter"><span class="toc-num">9.</span> Display Filter Language</a>
+    <a class="nav-link" href="#other-filters"><span class="toc-num">10.</span> Other Filters</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Analysis Tools</div>
+    <a class="nav-link" href="#protocol-stats"><span class="toc-num">11.</span> Protocol Statistics</a>
+    <a class="nav-link" href="#extractions"><span class="toc-num">12.</span> Extraction &amp; HTTP Objects</a>
+    <a class="nav-link" href="#latency"><span class="toc-num">13.</span> Latency &amp; RTT</a>
+    <a class="nav-link" href="#flow-diagram"><span class="toc-num">14.</span> Flow / Sequence Diagram</a>
+    <a class="nav-link" href="#io-graph"><span class="toc-num">15.</span> IO Graph</a>
+    <a class="nav-link" href="#tcp-stream"><span class="toc-num">16.</span> TCP Stream</a>
+    <a class="nav-link" href="#packet-diff"><span class="toc-num">17.</span> Packet Diff</a>
+    <a class="nav-link" href="#conversations"><span class="toc-num">18.</span> Conversations</a>
+    <a class="nav-link" href="#compare"><span class="toc-num">19.</span> Capture Comparison</a>
+    <a class="nav-link" href="#geoip"><span class="toc-num">20.</span> GeoIP Map</a>
+    <a class="nav-link" href="#conn-state"><span class="toc-num">21.</span> Connection State Machine</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Security &amp; Threat Analysis</div>
+    <a class="nav-link" href="#os-fingerprint"><span class="toc-num">22.</span> OS Fingerprinting</a>
+    <a class="nav-link" href="#tunnel-detection"><span class="toc-num">23.</span> Tunnel Detection</a>
+    <a class="nav-link" href="#anomalies"><span class="toc-num">24.</span> Anomaly Detection</a>
+    <a class="nav-link" href="#darkweb"><span class="toc-num">25.</span> Dark Web Port Detection</a>
+    <a class="nav-link" href="#ioc-matching"><span class="toc-num">26.</span> IoC Matching</a>
+    <a class="nav-link" href="#alert-rules"><span class="toc-num">27.</span> Alert Rules Engine</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Customization</div>
+    <a class="nav-link" href="#coloring-rules"><span class="toc-num">28.</span> Coloring Rules</a>
+    <a class="nav-link" href="#annotations"><span class="toc-num">29.</span> Annotations &amp; Notes</a>
+    <a class="nav-link" href="#bookmarks"><span class="toc-num">30.</span> Bookmarks</a>
+    <a class="nav-link" href="#themes"><span class="toc-num">31.</span> Themes</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Export &amp; More</div>
+    <a class="nav-link" href="#export"><span class="toc-num">32.</span> Export</a>
+    <a class="nav-link" href="#fullscreen"><span class="toc-num">33.</span> Fullscreen &amp; Screenshots</a>
+    <a class="nav-link" href="#url-state"><span class="toc-num">34.</span> URL State</a>
+    <a class="nav-link" href="#shortcuts-ref"><span class="toc-num">35.</span> Keyboard Shortcuts</a>
+    <a class="nav-link" href="#architecture"><span class="toc-num">36.</span> Architecture &amp; Security</a>
+  </div>
+</nav>
+
+<!-- ===== Main Content ===== -->
+<main class="main">
+
+<!-- Hero -->
+<div class="hero">
+  <h1>CyntricaVIZ v0.1</h1>
+  <p class="subtitle">A native desktop network packet analyzer and visualizer built with Tauri. Parse <code>.pcap</code> and <code>.pcapng</code> captures entirely offline &mdash; no uploads, no servers, no cloud.</p>
+</div>
+
+<!-- 1. Overview -->
+<h2 id="overview">1. Overview</h2>
+<p>CyntricaVIZ is a native desktop application that loads Wireshark-compatible capture files and presents them through interactive visualizations, deep protocol analysis, threat intelligence matching, and a powerful filtering system. Built with Tauri v2, it runs as a lightweight native app on macOS, Windows, and Linux. Every byte stays on your machine &mdash; nothing is sent to any server.</p>
+
+<div class="feature-grid">
+  <div class="feature-item">
+    <div class="feat-name">Interactive Network Graph</div>
+    <div class="feat-desc">Force-directed topology with L2/L3/L4 views, OS labels, subnet grouping hulls, dark web port indicators, and tunnel detection.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Display Filter Language</div>
+    <div class="feat-desc">Wireshark-style filter expressions with 18 fields, 8 operators, boolean logic, and autocomplete.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Threat Intelligence</div>
+    <div class="feat-desc">IoC indicator matching, dark web port detection, alert rules engine with flood, scan, and transfer detection.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Security Analysis</div>
+    <div class="feat-desc">Passive OS fingerprinting, tunnel/VPN detection, credential extraction, anomaly flags, and connection state tracking.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Protocol Statistics</div>
+    <div class="feat-desc">Tabbed dashboard with General, TCP, DNS, and HTTP analytics plus protocol breakdown charts.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Flow Diagrams &amp; IO Graphs</div>
+    <div class="feat-desc">Message sequence charts, stacked area throughput graphs, and packet heatmap timeline views.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Session Reconstruction</div>
+    <div class="feat-desc">TCP stream reassembly, HTTP object export with downloadable file extraction from captured traffic.</div>
+  </div>
+  <div class="feature-item">
+    <div class="feat-name">Annotations &amp; Export</div>
+    <div class="feat-desc">Per-packet notes saved locally, bookmarks, custom coloring rules, CSV/JSON export, panel screenshots.</div>
+  </div>
+</div>
+
+<p>The interface consists of a header bar with action buttons, four dashboard panels (Network Graph, Timeline, Protocol Breakdown, and Packet Table), a collapsible packet detail pane, and 16 modals for deeper analysis.</p>
+
+
+<!-- 2. Quick Start -->
+<h2 id="quickstart">2. Quick Start</h2>
+<ol>
+  <li>Launch the <strong>CyntricaVIZ</strong> application (double-click the <code>.app</code>, <code>.exe</code>, or AppImage).</li>
+  <li><strong>Drag and drop</strong> a <code>.pcap</code> or <code>.pcapng</code> file onto the upload area, or click <strong>Choose File</strong> to use the native file dialog.</li>
+  <li>The parser processes the file entirely offline. A loading spinner shows progress.</li>
+  <li>Once loaded, the dashboard appears with all four panels populated.</li>
+  <li>Click any node in the Network Graph, any slice in the Protocol chart, or any row in the Packet Table to start exploring.</li>
+</ol>
+
+<div class="callout callout-tip">
+  <div class="callout-label">Tip</div>
+  Press <kbd>?</kbd> at any time to see a quick-reference of all keyboard shortcuts.
+</div>
+
+
+<!-- 3. Supported Files -->
+<h2 id="file-formats">3. Supported File Formats</h2>
+
+<h3>Pcap (.pcap, .cap)</h3>
+<p>The classic libpcap format. Both big-endian and little-endian byte orders are supported, as well as nanosecond-precision variants. Maximum file size: 200 MB.</p>
+
+<h3>Pcapng (.pcapng)</h3>
+<p>The next-generation capture format. CyntricaVIZ supports Section Header Blocks, Interface Description Blocks, and Enhanced Packet Blocks (the most common block types).</p>
+
+<h3>Link Layer Types</h3>
+<table>
+  <tr><th>Type</th><th>ID</th><th>Description</th></tr>
+  <tr><td>Ethernet</td><td>1</td><td>Standard Ethernet II frames with 14-byte header</td></tr>
+  <tr><td>Linux SLL</td><td>113</td><td>Linux &ldquo;cooked&rdquo; capture format</td></tr>
+  <tr><td>Raw IP</td><td>101</td><td>IP packets without any link-layer header</td></tr>
+</table>
+
+<h3>Supported Protocols</h3>
+<p>The parser dissects: <strong>Ethernet</strong>, <strong>IPv4</strong>, <strong>IPv6</strong> (with extension headers), <strong>ARP</strong>, <strong>TCP</strong> (including options: MSS, Window Scale, SACK Permitted, Timestamps), <strong>UDP</strong>, <strong>ICMP</strong>, <strong>ICMPv6</strong>, <strong>DNS</strong> (with RCODE extraction and answer parsing), and <strong>HTTP</strong> (request and response detection). Each packet&rsquo;s raw bytes are retained for hex dump, TCP stream reassembly, and HTTP object extraction.</p>
+
+
+<!-- 4. Network Graph -->
+<h2 id="network-graph">4. Network Graph</h2>
+<p>The top-left panel displays a force-directed graph of network hosts connected by communication links.</p>
+
+<h3>Layer Toggle (L2 / L3 / L4)</h3>
+<p>Three buttons in the panel header switch between graph layers:</p>
+<table>
+  <tr><th>Layer</th><th>Nodes Represent</th><th>Best For</th></tr>
+  <tr><td><strong>L2</strong></td><td>MAC addresses</td><td>Switch-level analysis, seeing physical topology</td></tr>
+  <tr><td><strong>L3</strong> (default)</td><td>IP addresses</td><td>General network analysis, host identification</td></tr>
+  <tr><td><strong>L4</strong></td><td>IP:Port pairs</td><td>Service-level analysis, identifying specific connections</td></tr>
+</table>
+
+<h3>Host Limit Slider</h3>
+<p>A slider control in the panel header lets you adjust how many nodes appear in the graph (default: 50). The top N hosts by traffic volume are displayed. Reducing this improves performance for large captures; increasing it shows more of the network. The current value is displayed next to the slider.</p>
+
+<h3>Reading the Graph</h3>
+<ul>
+  <li><strong>Node size</strong> &mdash; proportional to traffic volume (bytes sent + received).</li>
+  <li><strong>Link color</strong> &mdash; indicates the predominant protocol (e.g., <span class="swatch" style="background:#4fc3f7"></span>TCP, <span class="swatch" style="background:#81c784"></span>UDP, <span class="swatch" style="background:#ffb74d"></span>DNS).</li>
+  <li><strong>Link thickness</strong> &mdash; proportional to packet count between the two nodes.</li>
+  <li><strong>Red nodes</strong> &mdash; hosts with detected tunnel activity (Tor, VPN, etc.).</li>
+  <li><span style="color:#a855f7">Purple nodes</span> &mdash; hosts with dark web port activity (Tor, I2P, SOCKS proxies).</li>
+  <li><span style="color:#ef4444">Red-outlined nodes</span> &mdash; external (non-RFC1918) IP addresses.</li>
+</ul>
+
+<h3>Subnet Grouping</h3>
+<p>In L3 mode, hosts are visually grouped by their /24 subnet. Each subnet is enclosed in a colored convex hull (a translucent polygon boundary). The label above each hull shows the CIDR range with an &ldquo;Internal&rdquo; or &ldquo;External&rdquo; tag based on RFC 1918 private address ranges. This makes it easy to see which hosts belong to the same network segment and to spot cross-subnet communication patterns.</p>
+
+<h3>Interactions</h3>
+<ul>
+  <li><strong>Click a node</strong> &mdash; filters the entire dashboard to traffic involving that host. Click again to clear.</li>
+  <li><strong>Drag a node</strong> &mdash; repositions it in the force layout.</li>
+  <li><strong>Scroll</strong> &mdash; zoom in/out.</li>
+  <li><strong>Hover</strong> &mdash; tooltip showing address, traffic volume, resolved hostname, OS fingerprint, tunnel flags, and dark web port activity.</li>
+</ul>
+
+<h3>L3-Specific Labels</h3>
+<p>In L3 mode, each node shows up to three text labels below it:</p>
+<ol>
+  <li>IP address</li>
+  <li>DNS-resolved hostname (if found in captured DNS responses)</li>
+  <li>Detected operating system (from passive fingerprinting)</li>
+</ol>
+
+
+<!-- 5. Timeline & Heatmap -->
+<h2 id="timeline">5. Timeline &amp; Heatmap</h2>
+<p>The top-right panel has two display modes: the standard timeline scatter plot and the heatmap view. Toggle between them with the <strong>Heatmap</strong> button in the panel header or press <kbd>H</kbd>.</p>
+
+<h3>Standard Timeline</h3>
+<ul>
+  <li><strong>X-axis</strong> &mdash; elapsed time from capture start.</li>
+  <li><strong>Dot color</strong> &mdash; protocol.</li>
+  <li><strong>Red ring</strong> &mdash; packets with detected anomalies (RST, retransmission, jumbo frame).</li>
+  <li><strong>Dimmed dots</strong> &mdash; packets not matching the current host filter.</li>
+</ul>
+
+<h3>Heatmap Mode</h3>
+<p>When activated, the timeline transforms into a protocol-by-time density grid rendered on a Canvas element:</p>
+<ul>
+  <li><strong>Rows</strong> &mdash; the top 12 protocols by packet count, labeled on the left axis.</li>
+  <li><strong>Columns</strong> &mdash; time buckets spanning the full capture duration (up to 200 columns).</li>
+  <li><strong>Cell color</strong> &mdash; the protocol&rsquo;s assigned color at an opacity proportional to the packet count in that cell. Brighter means more packets.</li>
+  <li><strong>Time axis</strong> &mdash; labeled in seconds from capture start along the bottom.</li>
+</ul>
+<p>The heatmap is ideal for spotting traffic bursts, protocol distribution changes over time, and quiet periods in the capture.</p>
+
+<h3>Brush Selection</h3>
+<p>In both modes, a mini histogram at the bottom of the timeline panel shows packet density. Drag across this area to select a time range &mdash; only packets within that window will appear in the table and charts. Release the brush to clear the time filter.</p>
+
+
+<!-- 6. Protocol Charts -->
+<h2 id="protocol-charts">6. Protocol Breakdown</h2>
+<p>The full-width middle panel contains two charts side by side:</p>
+
+<h3>Donut Chart (left)</h3>
+<p>Shows protocol distribution as proportional slices. Protocols comprising less than 5% of traffic have their labels hidden to reduce clutter. <strong>Click a slice</strong> to filter the dashboard to that protocol; click again to clear.</p>
+
+<h3>Bar Chart (right)</h3>
+<p>Shows the top 8 protocols by packet count as vertical bars. Useful for quick comparison of protocol volumes. Hover for exact counts.</p>
+
+
+<!-- 7. Packet Table -->
+<h2 id="packet-table">7. Packet Table</h2>
+<p>The bottom panel is a high-performance virtual-scrolling table of all packets matching the current filters. DOM node pooling ensures smooth scrolling even with 100K+ packets.</p>
+
+<h3>Columns</h3>
+<table>
+  <tr><th>Column</th><th>Description</th></tr>
+  <tr><td><strong>&#9733;</strong></td><td>Bookmark star. Click to toggle. Gold when active.</td></tr>
+  <tr><td><strong>&#9998;</strong></td><td>Note indicator. Dot when empty, pencil icon when a note exists. Click to add or edit.</td></tr>
+  <tr><td><strong>#</strong></td><td>Packet number from the capture file.</td></tr>
+  <tr><td><strong>Time</strong></td><td>Seconds elapsed since the first packet (4 decimal places).</td></tr>
+  <tr><td><strong>Source</strong></td><td>Source IP (or MAC for non-IP traffic).</td></tr>
+  <tr><td><strong>Destination</strong></td><td>Destination IP (or MAC).</td></tr>
+  <tr><td><strong>Protocol</strong></td><td>Detected protocol, shown as a color-coded tag.</td></tr>
+  <tr><td><strong>Length</strong></td><td>Original packet length in bytes.</td></tr>
+  <tr><td><strong>Info</strong></td><td>Dissected summary &mdash; flags, query names, HTTP methods, etc. A warning triangle appears if anomalies were detected. A skull emoji appears if dark web ports were involved.</td></tr>
+</table>
+
+<h3>Sorting</h3>
+<p>Click any column header to sort. Click again to reverse. An arrow indicator (<strong>&#9650;</strong> ascending, <strong>&#9660;</strong> descending) appears in the active sort column.</p>
+
+<h3>Row Indicators</h3>
+<ul>
+  <li><strong>Blue left border</strong> &mdash; currently selected packet.</li>
+  <li><strong>Orange left border</strong> &mdash; second packet selected for diff comparison.</li>
+  <li><strong>Red right border</strong> &mdash; packet has one or more anomalies.</li>
+  <li><strong>Background tint</strong> &mdash; colored by active coloring rule or protocol.</li>
+</ul>
+
+<h3>Interactions</h3>
+<ul>
+  <li><strong>Click a row</strong> &mdash; select it and open the packet detail pane.</li>
+  <li><strong>Shift + Click a row</strong> &mdash; select it as the second packet for a diff comparison. A &ldquo;Diff&rdquo; button appears in the detail pane.</li>
+  <li><strong>Click the star</strong> &mdash; toggle bookmark.</li>
+  <li><strong>Click the note icon</strong> &mdash; open the annotation popover.</li>
+  <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> &mdash; navigate packets with the keyboard.</li>
+  <li><kbd>Enter</kbd> &mdash; open detail pane for the selected packet.</li>
+  <li><kbd>B</kbd> &mdash; toggle bookmark on the selected packet.</li>
+</ul>
+
+
+<!-- 8. Packet Detail -->
+<h2 id="detail-pane">8. Packet Detail &amp; Hex Dump</h2>
+<p>When a packet is selected, a drawer slides up from the bottom showing two side-by-side sections.</p>
+
+<h3>Layer Tree (left)</h3>
+<p>A collapsible tree showing every protocol layer in the packet. Click a layer header to expand or collapse it. Fields are displayed as <code>field_name: value</code> pairs in monospace font.</p>
+
+<p>Typical layers include:</p>
+<ul>
+  <li><strong>ETHERNET</strong> &mdash; source/destination MAC, EtherType</li>
+  <li><strong>IPV4 / IPV6</strong> &mdash; addresses, TTL/Hop Limit, DSCP, total length, identification</li>
+  <li><strong>TCP</strong> &mdash; ports, sequence/acknowledgment numbers, flags, window size, options (MSS, Window Scale, SACK, Timestamps)</li>
+  <li><strong>UDP</strong> &mdash; ports, length</li>
+  <li><strong>DNS</strong> &mdash; query name, type, RCODE, answers</li>
+  <li><strong>HTTP</strong> &mdash; method, URL, status code</li>
+</ul>
+
+<p>Additional contextual sections appear when applicable:</p>
+<ul>
+  <li><strong>OS FINGERPRINT</strong> &mdash; detected OS, confidence %, TTL (see <a href="#os-fingerprint">Section 22</a>).</li>
+  <li><strong>TUNNEL FLAGS</strong> &mdash; detected tunnel types (see <a href="#tunnel-detection">Section 23</a>).</li>
+  <li><strong style="color:#a855f7">DARK WEB / PROXY PORTS</strong> &mdash; Tor, I2P, or proxy port activity with packet counts per port per IP (see <a href="#darkweb">Section 25</a>).</li>
+  <li><strong style="color:#ef4444">THREAT INTELLIGENCE</strong> &mdash; appears when the packet matches a loaded IoC indicator (see <a href="#ioc-matching">Section 26</a>).</li>
+</ul>
+
+<h3>Hex Dump (right)</h3>
+<p>The raw packet bytes in standard hex dump format: 8-digit offset, 16 bytes per line in hex, and an ASCII sidebar on the right. Non-printable characters are shown as dots.</p>
+
+<h3>Detail Pane Buttons</h3>
+<ul>
+  <li><strong>Follow Stream</strong> / <kbd>S</kbd> &mdash; reconstruct the TCP stream for this connection.</li>
+  <li><strong>Diff</strong> &mdash; appears when a second packet is Shift-clicked; opens the diff comparison modal.</li>
+  <li><strong>Close</strong> &mdash; close the detail pane.</li>
+</ul>
+
+
+<!-- 9. Display Filter Language -->
+<h2 id="display-filter">9. Display Filter Language</h2>
+<p>The search box at the top of the packet table accepts Wireshark-style filter expressions. If the expression is syntactically valid, it is compiled and applied; if not, the input falls back to a plain-text search across all packet fields.</p>
+
+<h3>Supported Fields</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>ip.src</code></td><td>string</td><td>Source IP address</td></tr>
+  <tr><td><code>ip.dst</code></td><td>string</td><td>Destination IP address</td></tr>
+  <tr><td><code>tcp.port</code></td><td>port</td><td>Matches either source or destination TCP port</td></tr>
+  <tr><td><code>udp.port</code></td><td>port</td><td>Matches either source or destination UDP port</td></tr>
+  <tr><td><code>tcp.srcport</code></td><td>number</td><td>TCP source port</td></tr>
+  <tr><td><code>tcp.dstport</code></td><td>number</td><td>TCP destination port</td></tr>
+  <tr><td><code>tcp.flags.syn</code></td><td>boolean</td><td>SYN flag set?</td></tr>
+  <tr><td><code>tcp.flags.ack</code></td><td>boolean</td><td>ACK flag set?</td></tr>
+  <tr><td><code>tcp.flags.rst</code></td><td>boolean</td><td>RST flag set?</td></tr>
+  <tr><td><code>tcp.flags.fin</code></td><td>boolean</td><td>FIN flag set?</td></tr>
+  <tr><td><code>protocol</code></td><td>string</td><td>Protocol name: TCP, UDP, DNS, HTTP, ICMP, ARP, etc.</td></tr>
+  <tr><td><code>frame.len</code></td><td>number</td><td>Original packet length in bytes</td></tr>
+  <tr><td><code>dns.qname</code></td><td>string</td><td>DNS query name</td></tr>
+  <tr><td><code>http.method</code></td><td>string</td><td>HTTP request method (GET, POST, etc.)</td></tr>
+  <tr><td><code>http.status</code></td><td>number</td><td>HTTP response status code</td></tr>
+  <tr><td><code>eth.src</code></td><td>string</td><td>Source MAC address</td></tr>
+  <tr><td><code>eth.dst</code></td><td>string</td><td>Destination MAC address</td></tr>
+  <tr><td><code>ip.ttl</code></td><td>number</td><td>IP Time-To-Live value</td></tr>
+</table>
+
+<h3>Operators</h3>
+<table>
+  <tr><th>Operator</th><th>Works With</th><th>Description</th></tr>
+  <tr><td><code>==</code></td><td>all types</td><td>Equals (case-insensitive for strings)</td></tr>
+  <tr><td><code>!=</code></td><td>all types</td><td>Not equals</td></tr>
+  <tr><td><code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code></td><td>number</td><td>Numeric comparison</td></tr>
+  <tr><td><code>contains</code></td><td>string</td><td>Substring match (case-insensitive)</td></tr>
+  <tr><td><code>matches</code></td><td>string</td><td>Regular expression match (case-insensitive, ReDoS-protected)</td></tr>
+</table>
+
+<h3>Boolean Logic</h3>
+<table>
+  <tr><th>Syntax</th><th>Meaning</th></tr>
+  <tr><td><code>&amp;&amp;</code> or <code>and</code></td><td>Both conditions must be true</td></tr>
+  <tr><td><code>||</code> or <code>or</code></td><td>Either condition can be true</td></tr>
+  <tr><td><code>!</code> or <code>not</code></td><td>Negate a condition</td></tr>
+  <tr><td><code>( )</code></td><td>Group sub-expressions</td></tr>
+</table>
+
+<h3>Examples</h3>
+<pre><code>ip.src == 192.168.1.1
+tcp.port == 443
+protocol == DNS && dns.qname contains google
+tcp.flags.syn == true && tcp.flags.ack != true
+frame.len > 1000
+ip.dst contains "10.0" || ip.dst contains "172.16"
+!(protocol == ARP)
+http.status >= 400</code></pre>
+
+<h3>Autocomplete</h3>
+<p>As you type a field name, a dropdown appears with matching suggestions and their types. Click a suggestion to insert it.</p>
+
+
+<!-- 10. Other Filters -->
+<h2 id="other-filters">10. Other Filters</h2>
+
+<h3>Protocol Dropdown</h3>
+<p>The <strong>All Protocols</strong> dropdown next to the search box lets you filter to a single protocol. It is populated from the protocols found in the loaded capture.</p>
+
+<h3>Anomalies Checkbox</h3>
+<p>Check <strong>Anomalies</strong> to show only packets that have at least one detected anomaly (TCP RST, retransmission, or jumbo frame).</p>
+
+<h3>Starred Checkbox</h3>
+<p>Check <strong>Starred</strong> to show only bookmarked packets.</p>
+
+<h3>Host Filter</h3>
+<p>Click any node in the Network Graph to filter to that host&rsquo;s traffic. Click the same node again (or press <kbd>Esc</kbd>) to clear.</p>
+
+<h3>Time Range Filter</h3>
+<p>Drag across the timeline brush area to filter packets to a specific time window.</p>
+
+<h3>Reset All Filters</h3>
+<p>Click <strong>Reset</strong> in the header or press <kbd>Esc</kbd> (when not focused on an input) to clear every active filter and return to the full packet set.</p>
+
+
+<!-- 11. Protocol Statistics -->
+<h2 id="protocol-stats">11. Protocol Statistics</h2>
+<p>Open with the <strong>Stats</strong> button or <kbd>D</kbd>. A tabbed modal with four views:</p>
+
+<h3>General Tab</h3>
+<p>High-level capture statistics displayed as cards: total packets, total bytes, capture duration, average packets/sec, average bytes/sec, average packet size, unique hosts, and connection count.</p>
+
+<h3>TCP Tab</h3>
+<p>TCP-specific metrics: total TCP packets, SYN count, RST count (with percentage), retransmission count (with percentage), average payload size, and unique TCP connections.</p>
+
+<h3>DNS Tab</h3>
+<p>DNS breakdown: total DNS packets, queries vs. responses, NXDOMAIN count (uses the RCODE field parsed from the DNS header), unique domains, and a table of the top 10 most-queried domain names.</p>
+
+<h3>HTTP Tab</h3>
+<p>HTTP analysis: total HTTP packets, requests, responses, a table of HTTP methods with counts, and a breakdown of response status code categories (2xx, 3xx, 4xx, 5xx).</p>
+
+
+<!-- 12. Extractions & HTTP Objects -->
+<h2 id="extractions">12. File &amp; Credential Extraction + HTTP Object Export</h2>
+<p>Open with <strong>Extractions</strong> or <kbd>X</kbd>. Deep-scans all TCP payloads and correlates HTTP requests with responses to identify transferred files and exposed credentials. Processing runs in async chunks to keep the UI responsive on large captures.</p>
+
+<h3>File Detection</h3>
+<ul>
+  <li><strong>HTTP responses with Content-Type</strong> &mdash; identifies file transfers by MIME type (excluding trivial text/html, CSS, and JavaScript). Correlates each response with its originating request to show the actual URL path and filename.</li>
+  <li><strong>Content-Disposition filenames</strong> &mdash; extracts explicit filenames from download headers.</li>
+  <li><strong>Content-Length</strong> &mdash; shows file size when available.</li>
+  <li><strong>File-extension requests</strong> &mdash; flags GET requests for common file types (PDF, ZIP, EXE, images, media, packages, etc.) even before the response arrives.</li>
+</ul>
+
+<h3>Credential Detection</h3>
+<ul>
+  <li><strong>HTTP Basic Auth</strong> &mdash; decodes <code>Authorization: Basic</code> headers to reveal the username.</li>
+  <li><strong>Bearer tokens</strong> &mdash; detects <code>Authorization: Bearer</code> headers.</li>
+  <li><strong>Session cookies</strong> &mdash; flags <code>Cookie</code> headers containing session, token, auth, or JWT identifiers.</li>
+  <li><strong>POST form credentials</strong> &mdash; detects form submissions containing password fields (sanitized in display).</li>
+  <li><strong>FTP credentials</strong> &mdash; detects <code>USER</code> and <code>PASS</code> commands on port 21.</li>
+  <li><strong>SMTP authentication</strong> &mdash; detects AUTH LOGIN/PLAIN commands and MAIL FROM addresses on ports 25/587.</li>
+  <li><strong>Telnet login prompts</strong> &mdash; flags login/password prompts on port 23.</li>
+</ul>
+
+<h3>HTTP Object Export (Session Reconstruction)</h3>
+<p>Below the extraction results, a second table appears if HTTP response bodies were found in the capture. The session reconstructor:</p>
+<ol>
+  <li>Groups all TCP packets into bidirectional streams (by source/destination IP:port tuple).</li>
+  <li>Scans each stream for HTTP response headers (detected by the <code>HTTP/</code> prefix).</li>
+  <li>Extracts the response body after the <code>\r\n\r\n</code> header boundary.</li>
+  <li>Displays each object with filename, Content-Type, size, HTTP status code, and URL.</li>
+</ol>
+<p>Click the <strong>Download</strong> button on any row to save the reconstructed file to your machine. Only non-trivial content types are shown (HTML/CSS/JS are filtered out).</p>
+
+<div class="callout callout-warn">
+  <div class="callout-label">Security Note</div>
+  This feature reveals credentials transmitted in cleartext and reconstructs files from unencrypted traffic. Encrypted traffic (HTTPS, SFTP) cannot be extracted.
+</div>
+
+
+<!-- 13. Latency -->
+<h2 id="latency">13. Latency &amp; RTT Analysis</h2>
+<p>Open with <strong>Latency</strong> or <kbd>L</kbd>. Measures round-trip times from the capture:</p>
+
+<h3>TCP RTT</h3>
+<p>Finds TCP SYN packets and matches them with the corresponding SYN-ACK response. The time difference is the connection establishment RTT.</p>
+
+<h3>DNS RTT</h3>
+<p>Matches DNS queries with their responses by domain name. The time difference is the DNS resolution latency.</p>
+
+<h3>Rating System</h3>
+<table>
+  <tr><th>Rating</th><th>RTT Range</th><th>Color</th></tr>
+  <tr><td>Fast</td><td>&lt; 50 ms</td><td style="color:#22c55e">Green</td></tr>
+  <tr><td>Normal</td><td>50 &ndash; 200 ms</td><td style="color:#f59e0b">Orange</td></tr>
+  <tr><td>Slow</td><td>&gt; 200 ms</td><td style="color:#ef4444">Red</td></tr>
+</table>
+
+<p>Results are sorted slowest-first (up to 100 entries) so you can quickly find the bottlenecks.</p>
+
+
+<!-- 14. Flow Diagram -->
+<h2 id="flow-diagram">14. Flow / Sequence Diagram</h2>
+<p>Open with <strong>Flow</strong> or <kbd>W</kbd>. Draws a message sequence chart (MSC) between two hosts.</p>
+
+<h3>Host Selection</h3>
+<p>Two dropdown menus let you choose Host A and Host B. By default, the two hosts with the most traffic are selected automatically. Click <strong>Refresh</strong> after changing the selection.</p>
+
+<h3>Reading the Diagram</h3>
+<ul>
+  <li>Two vertical dashed <strong>lifelines</strong>, one per host.</li>
+  <li>Horizontal <strong>arrows</strong> showing packet direction (source &rarr; destination), colored by protocol.</li>
+  <li><strong>Left margin</strong> shows relative timestamp.</li>
+  <li><strong>Above each arrow</strong> shows <code>[Protocol] info text</code>.</li>
+</ul>
+
+<p>Up to 200 packets are shown. This is ideal for analyzing handshake sequences, request-response patterns, and connection teardown.</p>
+
+
+<!-- 15. IO Graph -->
+<h2 id="io-graph">15. IO Graph</h2>
+<p>Open with <strong>IO Graph</strong> or <kbd>I</kbd>. A stacked area chart showing network throughput over time, broken down by protocol.</p>
+
+<h3>Controls</h3>
+<ul>
+  <li><strong>Metric</strong> &mdash; switch between <em>Packets/sec</em> and <em>Bytes/sec</em>.</li>
+  <li><strong>Interval</strong> &mdash; bucket size: 100ms, 500ms, 1s (default), or 5s.</li>
+</ul>
+
+<h3>Reading the Chart</h3>
+<p>Each protocol gets its own colored area, stacked on top of one another. The x-axis shows time from capture start; the y-axis shows the rate. Hover over the chart for precise values.</p>
+
+
+<!-- 16. TCP Stream -->
+<h2 id="tcp-stream">16. TCP Stream Reconstruction</h2>
+<p>Select a TCP packet and press <kbd>S</kbd> or click <strong>Follow Stream</strong> in the detail pane.</p>
+
+<p>The modal reconstructs the full TCP conversation for that connection (matching the 4-tuple in both directions). Payload data is displayed as text:</p>
+<ul>
+  <li><span style="color:#4fc3f7">Blue text</span> &mdash; data sent by the client (connection initiator).</li>
+  <li><span style="color:#e57373">Red text</span> &mdash; data sent by the server.</li>
+</ul>
+
+<p>Non-printable bytes are shown as dots. The info bar shows total packet count and bytes transferred.</p>
+
+
+<!-- 17. Packet Diff -->
+<h2 id="packet-diff">17. Packet Diff</h2>
+<p>Compare two packets side by side:</p>
+
+<ol>
+  <li><strong>Click</strong> a packet in the table to select it (Packet A).</li>
+  <li><strong>Shift + Click</strong> a second packet (Packet B). Its row gets an orange left border.</li>
+  <li>Click the <strong>Diff</strong> button that appears in the detail pane.</li>
+</ol>
+
+<h3>Field Diff (top)</h3>
+<p>A table showing every field from both packets. Fields with different values are highlighted with an orange background.</p>
+
+<h3>Hex Diff (bottom)</h3>
+<p>Side-by-side hex dumps with byte-level coloring:</p>
+<ul>
+  <li><strong>Gray</strong> &mdash; identical bytes.</li>
+  <li><span style="color:#f59e0b">Orange</span> &mdash; bytes that differ between the two packets.</li>
+  <li><span style="color:#ef4444">Red</span> &mdash; bytes present in one packet but not the other (length difference).</li>
+</ul>
+
+
+<!-- 18. Conversations -->
+<h2 id="conversations">18. Conversations Table</h2>
+<p>Open with <strong>Conversations</strong> or <kbd>C</kbd>. A sortable table of every unique IP pair:</p>
+
+<table>
+  <tr><th>Column</th><th>Description</th></tr>
+  <tr><td>Address A / B</td><td>The two endpoints (sorted alphabetically)</td></tr>
+  <tr><td>Packets</td><td>Total packets exchanged in both directions</td></tr>
+  <tr><td>Bytes</td><td>Total bytes</td></tr>
+  <tr><td>Duration</td><td>Time from first to last packet in this conversation</td></tr>
+  <tr><td>Protocols</td><td>All protocols seen in this conversation</td></tr>
+</table>
+
+
+<!-- 19. Compare -->
+<h2 id="compare">19. Capture Comparison</h2>
+<p>Click <strong>Compare</strong> in the header to load a second <code>.pcap</code>/<code>.pcapng</code> file. A side-by-side view shows filename, total packets, total bytes, and protocol breakdown with counts and percentages for each capture.</p>
+
+
+<!-- 20. GeoIP -->
+<h2 id="geoip">20. GeoIP Map</h2>
+<p>Press <kbd>G</kbd> to open a simplified world map with IP addresses plotted by their first octet. Node size represents traffic volume. This provides a rough geographic overview based on first-octet heuristics.</p>
+
+
+<!-- 21. Connection State Machine -->
+<h2 id="conn-state">21. Connection State Machine View</h2>
+<p>Open with the <strong>Conn State</strong> button or press <kbd>M</kbd>. This modal displays every TCP connection in the capture with its handshake state and event flow.</p>
+
+<h3>Connection States</h3>
+<table>
+  <tr><th>State</th><th>Badge Color</th><th>Meaning</th></tr>
+  <tr><td><strong>Complete</strong></td><td style="color:#22c55e">Green</td><td>Full handshake (SYN &rarr; SYN-ACK) followed by data transfer and graceful close (FIN).</td></tr>
+  <tr><td><strong>Established</strong></td><td style="color:#4fc3f7">Blue</td><td>Handshake completed (SYN + SYN-ACK seen) but no FIN observed &mdash; connection was still active or capture ended mid-session.</td></tr>
+  <tr><td><strong>Half-Open</strong></td><td style="color:#f59e0b">Orange</td><td>SYN sent but no SYN-ACK received. May indicate a refused connection, firewall drop, or SYN scan.</td></tr>
+  <tr><td><strong>Reset</strong></td><td style="color:#ef4444">Red</td><td>Connection terminated with a RST flag. Indicates forcible closure, refused connection, or port scan response.</td></tr>
+  <tr><td><strong>Data-Only</strong></td><td style="color:var(--text-muted)">Gray</td><td>Data packets observed but no SYN. The handshake occurred before the capture started.</td></tr>
+</table>
+
+<h3>Event Flow Visualization</h3>
+<p>Each connection card shows the TCP event sequence as color-coded steps connected by arrows:</p>
+<ul>
+  <li><span style="color:#22c55e">SYN</span> &rarr; <span style="color:#4fc3f7">SYN-ACK</span> &rarr; <span style="color:var(--text-muted)">DATA</span> &rarr; <span style="color:#f59e0b">FIN</span> or <span style="color:#ef4444">RST</span></li>
+  <li>Each step shows the direction (client or server) and is limited to 12 events for readability.</li>
+</ul>
+
+<h3>Filtering</h3>
+<p>The dropdown at the top filters connections by state: All, Complete, Established, Half-Open, Reset, or Data-Only. The first 100 connections (by packet count, descending) are shown.</p>
+
+<h3>Connection Details</h3>
+<p>Each card displays: client and server endpoints (IP:port), total packets, total bytes, and connection duration.</p>
+
+<div class="callout callout-info">
+  <div class="callout-label">Use Case</div>
+  Half-open connections and RST floods are strong indicators of port scanning, SYN flood attacks, or firewall issues. Use the filter to quickly isolate suspicious connections.
+</div>
+
+
+<!-- 22. OS Fingerprinting -->
+<h2 id="os-fingerprint">22. Passive OS Fingerprinting</h2>
+<p>CyntricaVIZ passively identifies operating systems from TCP SYN packets by examining:</p>
+
+<table>
+  <tr><th>Signal</th><th>Heuristic</th></tr>
+  <tr><td><strong>TTL</strong></td><td>64 &rarr; Linux/macOS, 128 &rarr; Windows, &gt;200 &rarr; Solaris/Router</td></tr>
+  <tr><td><strong>Window Size</strong></td><td>65535 &rarr; macOS/FreeBSD, 29200 &rarr; Linux, 64240 &rarr; Windows 10+, 8192 &rarr; Windows 7/8</td></tr>
+  <tr><td><strong>MSS</strong></td><td>1460 &rarr; standard Ethernet, &lt;1400 &rarr; VPN/tunnel (lowers confidence)</td></tr>
+</table>
+
+<p>Results appear in the Network Graph (as node labels), node tooltips, and the Packet Detail layer tree.</p>
+
+
+<!-- 23. Tunnel Detection -->
+<h2 id="tunnel-detection">23. Tunnel / VPN Detection</h2>
+<p>Flags hosts using tunnels or VPNs based on port and behavioral analysis:</p>
+
+<table>
+  <tr><th>Tunnel Type</th><th>Detection Method</th></tr>
+  <tr><td><strong>Tor</strong></td><td>Traffic on ports 9001 or 9030</td></tr>
+  <tr><td><strong>WireGuard</strong></td><td>UDP traffic on port 51820</td></tr>
+  <tr><td><strong>OpenVPN</strong></td><td>TCP or UDP traffic on port 1194</td></tr>
+  <tr><td><strong>SSH Tunnel</strong></td><td>Port 22 with &gt;100 KB cumulative payload</td></tr>
+  <tr><td><strong>DNS Tunnel</strong></td><td>DNS queries with names longer than 50 characters</td></tr>
+</table>
+
+<p>Detected tunnels appear as red nodes in the Network Graph, tunnel labels in tooltips, and a TUNNEL FLAGS section in the packet detail pane.</p>
+
+
+<!-- 24. Anomaly Detection -->
+<h2 id="anomalies">24. Anomaly Detection</h2>
+<p>The parser automatically flags unusual packets:</p>
+
+<table>
+  <tr><th>Anomaly</th><th>Condition</th></tr>
+  <tr><td><strong>TCP RST</strong></td><td>RST flag is set &mdash; connection was forcibly reset</td></tr>
+  <tr><td><strong>Retransmission</strong></td><td>Same sequence number from same source to same destination</td></tr>
+  <tr><td><strong>Jumbo Frame</strong></td><td>Packet length exceeds 9000 bytes</td></tr>
+</table>
+
+<p>Anomalous packets show a red right border in the table, a red ring on the timeline, and a warning triangle in the Info column. Use the <strong>Anomalies</strong> checkbox to filter to only these packets.</p>
+
+
+<!-- 25. Dark Web Port Detection -->
+<h2 id="darkweb">25. Dark Web Port Detection</h2>
+<p>CyntricaVIZ monitors all packets for traffic on ports associated with anonymization networks and proxy services. When detected, flags are applied to involved hosts.</p>
+
+<h3>Monitored Ports</h3>
+<table>
+  <tr><th>Category</th><th>Ports</th><th>Services</th></tr>
+  <tr><td><strong>Tor Network</strong></td><td>9050, 9051, 9150, 9001, 9030</td><td>SOCKS proxy, Control port, Browser SOCKS, Relay, Directory</td></tr>
+  <tr><td><strong>I2P Network</strong></td><td>4444, 4445, 7656, 7657, 7658, 6668, 2827</td><td>HTTP/HTTPS proxy, SAM, Router Console, IRC, BOB</td></tr>
+  <tr><td><strong>Proxy Services</strong></td><td>1080, 3128, 8080, 8118</td><td>SOCKS proxy, HTTP proxy, Privoxy</td></tr>
+  <tr><td><strong>Other</strong></td><td>9418, 5222</td><td>Git (dark repo), XMPP/Jabber</td></tr>
+</table>
+
+<h3>Where Flags Appear</h3>
+<ul>
+  <li><strong>Network Graph</strong> &mdash; <span style="color:#a855f7">purple-filled nodes</span> for hosts with dark web port activity.</li>
+  <li><strong>Node Tooltip</strong> &mdash; shows each dark web port with its service name and packet count.</li>
+  <li><strong>Packet Table</strong> &mdash; a skull emoji in the Info column for packets involving dark web ports.</li>
+  <li><strong>Packet Detail</strong> &mdash; a <span style="color:#a855f7">DARK WEB / PROXY PORTS</span> section listing each IP, port, service name, and occurrence count.</li>
+  <li><strong>Alert Rules</strong> &mdash; the &ldquo;Dark Web Port Activity&rdquo; rule type triggers when dark web ports are detected.</li>
+</ul>
+
+
+<!-- 26. IoC Matching -->
+<h2 id="ioc-matching">26. Threat Intelligence &mdash; IoC Matching</h2>
+<p>Click the <strong>IoC</strong> button in the header to open the Indicator of Compromise matching modal. This lets you check your capture against a list of known-bad IPs, domains, or other indicators.</p>
+
+<h3>How to Use</h3>
+<ol>
+  <li><strong>Paste indicators</strong> into the text area &mdash; one per line, or separated by commas or semicolons. Supported indicator types: IP addresses, domain names, DNS query names.</li>
+  <li>Click <strong>Scan</strong>. The scan runs asynchronously in chunks of 1,000 packets, showing a progress percentage to keep the UI responsive on large captures.</li>
+  <li>Results appear below with a summary of matched IPs and domains.</li>
+</ol>
+
+<h3>What Gets Matched</h3>
+<p>For each packet, the scanner checks:</p>
+<ul>
+  <li><strong>Source and destination IP addresses</strong> against all IP indicators.</li>
+  <li><strong>DNS query names</strong> against all domain indicators.</li>
+  <li><strong>DNS answer records</strong> (both the resolved name and IP data) against the indicator list.</li>
+</ul>
+
+<h3>Results Display</h3>
+<p>A summary line shows total matches and unique matched IPs/domains. Below, a table groups results by matched IP showing match count, involved protocols, and a representative packet number. Match type (IP or Domain) is indicated for each entry.</p>
+
+<h3>Integration with Packet Detail</h3>
+<p>After scanning, any packet matching a loaded IoC indicator will show a red <strong>THREAT INTELLIGENCE</strong> section in its detail pane layer tree with a warning that the packet matches a known indicator.</p>
+
+<div class="callout callout-tip">
+  <div class="callout-label">Tip</div>
+  You can paste IoC feeds from threat intelligence platforms (STIX/TAXII exports, abuse.ch, etc.) directly into the text area. The scanner accepts mixed indicator types in a single paste.
+</div>
+
+
+<!-- 27. Alert Rules Engine -->
+<h2 id="alert-rules">27. Alert Rules Engine</h2>
+<p>Click the <strong>Alerts</strong> button or press <kbd>A</kbd> to open the configurable alert rules engine. Define custom detection rules that scan the loaded capture for suspicious patterns.</p>
+
+<h3>Default Rules</h3>
+<p>Five rules are pre-configured out of the box:</p>
+<table>
+  <tr><th>Rule Name</th><th>Type</th><th>Threshold</th><th>Window</th><th>Severity</th></tr>
+  <tr><td>High RST Rate</td><td>RST Flood</td><td>50 packets</td><td>10s</td><td>High</td></tr>
+  <tr><td>DNS Non-Standard Port</td><td>DNS Non-Standard</td><td>&mdash;</td><td>&mdash;</td><td>Medium</td></tr>
+  <tr><td>Dark Web Port Activity</td><td>Dark Web Ports</td><td>1 host</td><td>&mdash;</td><td>High</td></tr>
+  <tr><td>Large Data Transfer</td><td>Large Transfer</td><td>10 MB</td><td>&mdash;</td><td>Medium</td></tr>
+  <tr><td>Port Scan Detection</td><td>Port Scan</td><td>20 unique ports</td><td>60s</td><td>Critical</td></tr>
+</table>
+
+<h3>Available Rule Types</h3>
+<table>
+  <tr><th>Type</th><th>What It Detects</th><th>Algorithm</th></tr>
+  <tr><td><strong>RST Flood</strong></td><td>Burst of TCP RST packets</td><td>Two-pointer sliding window (O(n))</td></tr>
+  <tr><td><strong>SYN Flood</strong></td><td>Burst of SYN-only packets</td><td>Two-pointer sliding window (O(n))</td></tr>
+  <tr><td><strong>ICMP Flood</strong></td><td>Burst of ICMP/ICMPv6 packets</td><td>Two-pointer sliding window (O(n))</td></tr>
+  <tr><td><strong>DNS Non-Standard Port</strong></td><td>DNS queries on ports other than 53</td><td>Packet filter + port set</td></tr>
+  <tr><td><strong>Dark Web Ports</strong></td><td>Tor/I2P/proxy port activity</td><td>Checks <code>darkWebFlags</code> map</td></tr>
+  <tr><td><strong>Large Transfer</strong></td><td>Connections exceeding byte threshold</td><td>Iterates connection map</td></tr>
+  <tr><td><strong>Port Scan</strong></td><td>Host connecting to many unique ports on a target</td><td>Source-destination port set counting</td></tr>
+</table>
+
+<h3>Rule Configuration</h3>
+<p>Each rule has the following editable fields:</p>
+<ul>
+  <li><strong>Enable checkbox</strong> &mdash; toggle without deleting.</li>
+  <li><strong>Name</strong> &mdash; descriptive label.</li>
+  <li><strong>Type</strong> &mdash; select from the dropdown of detection types.</li>
+  <li><strong>Threshold</strong> &mdash; the count or size that triggers the alert.</li>
+  <li><strong>Window (seconds)</strong> &mdash; the time window for rate-based rules (RST/SYN/ICMP flood).</li>
+  <li><strong>Severity</strong> &mdash; Critical, High, Medium, or Low.</li>
+</ul>
+<p>Click <strong>+ Add Rule</strong> to create new rules. Click the <strong>&times;</strong> button to remove one.</p>
+
+<h3>Running Rules</h3>
+<p>Click <strong>Run Rules</strong> to execute all enabled rules against the loaded capture. Results appear below, sorted by severity (critical first). Each triggered alert shows a color-coded severity badge, the rule name, and a description of what was found (e.g., packet counts, IP addresses involved, timestamps).</p>
+
+<p>A summary bar at the top shows the count of alerts by severity level.</p>
+
+
+<!-- 28. Coloring Rules -->
+<h2 id="coloring-rules">28. Coloring Rules</h2>
+<p>Click <strong>Colors</strong> in the header to manage packet coloring. Four profiles are available:</p>
+
+<h3>Default</h3>
+<p>Rows are tinted with their protocol color at low opacity. No custom rules.</p>
+
+<h3>Security</h3>
+<p>Highlights security-relevant packets:</p>
+<ul>
+  <li><span class="swatch" style="background:#ef4444"></span> RST packets &mdash; red</li>
+  <li><span class="swatch" style="background:#f59e0b"></span> SYN-only packets (no ACK) &mdash; orange</li>
+</ul>
+
+<h3>Web</h3>
+<p>Highlights web traffic:</p>
+<ul>
+  <li><span class="swatch" style="background:#22c55e"></span> HTTP &mdash; green</li>
+  <li><span class="swatch" style="background:#3b82f6"></span> DNS &mdash; blue</li>
+</ul>
+
+<h3>Custom</h3>
+<p>Define your own rules with the rule editor. Each rule has a name, field, operator (<code>==</code>, <code>!=</code>, <code>contains</code>), value, and color picker. Rules are evaluated top-to-bottom; the first matching enabled rule wins. Results are cached for scroll performance and invalidated when rules change.</p>
+
+
+<!-- 29. Annotations -->
+<h2 id="annotations">29. Annotations &amp; Notes</h2>
+<p>Attach text notes to individual packets for analysis documentation.</p>
+
+<h3>Adding a Note</h3>
+<ol>
+  <li>Click the note icon (<strong>&middot;</strong>) in any packet row.</li>
+  <li>A popover appears with a text area. Type your note.</li>
+  <li>Click <strong>Save</strong> to store, <strong>Delete</strong> to remove an existing note, or <strong>Cancel</strong> to discard.</li>
+</ol>
+
+<h3>Viewing All Notes</h3>
+<p>Click <strong>Notes</strong> in the header or press <kbd>N</kbd> to see a table of all annotated packets with their notes and delete buttons.</p>
+
+<h3>Persistence</h3>
+<p>Notes are stored in your browser&rsquo;s localStorage with a sanitized filename key. A 1 MB size limit prevents storage overflow. Notes survive page reloads but are specific to each capture file.</p>
+
+<h3>Export</h3>
+<p>Notes are included in both CSV and JSON exports as a separate column/field.</p>
+
+
+<!-- 30. Bookmarks -->
+<h2 id="bookmarks">30. Bookmarks</h2>
+<p>Click the star icon in any packet row or select a packet and press <kbd>B</kbd> to bookmark it. Bookmarked packets show a gold star. Use the <strong>Starred</strong> checkbox in the table controls to filter to only bookmarked packets.</p>
+
+
+<!-- 31. Themes -->
+<h2 id="themes">31. Themes</h2>
+<p>Press <kbd>T</kbd> or click <strong>Theme</strong> to switch between dark mode (default) and light mode. The theme applies to all panels, modals, charts, and the hex dump. All visualizations re-render to use the correct color variables.</p>
+
+
+<!-- 32. Export -->
+<h2 id="export">32. Export</h2>
+
+<h3>CSV Export</h3>
+<p>Click <strong>CSV</strong> to download a comma-separated file of all currently filtered packets. Columns: #, Time, Source, Destination, Protocol, Length, Info, Anomalies, and Notes.</p>
+
+<h3>JSON Export</h3>
+<p>Click <strong>JSON</strong> to download a JSON array of all filtered packets with fields: number, time, src, dst, protocol, length, info, anomalies, and note.</p>
+
+<p>Both exports respect the current filters &mdash; only visible packets are included.</p>
+
+
+<!-- 33. Fullscreen & Screenshots -->
+<h2 id="fullscreen">33. Fullscreen &amp; Panel Screenshots</h2>
+
+<h3>Fullscreen</h3>
+<p>Hover over a panel and press <kbd>F</kbd>, or click the expand button (&#x26F6;) in any panel header, or press <kbd>1</kbd>&ndash;<kbd>4</kbd> for specific panels. The panel fills the viewport. Press again to exit.</p>
+
+<h3>Screenshots</h3>
+<p>Click the camera icon in a panel header to export it:</p>
+<ul>
+  <li><strong>Canvas panels</strong> (Timeline/Heatmap) &rarr; PNG download.</li>
+  <li><strong>SVG panels</strong> (Network Graph, Protocol Charts) &rarr; SVG download.</li>
+</ul>
+
+
+<!-- 34. URL State -->
+<h2 id="url-state">34. URL State Persistence</h2>
+<p>Active filters are saved to the URL hash (e.g., <code>#host=192.168.1.1&amp;proto=TCP&amp;q=frame.len&gt;100</code>). This means:</p>
+<ul>
+  <li>You can bookmark a filtered view.</li>
+  <li>Filters restore on page reload (if the same file is loaded).</li>
+  <li>Browser back/forward navigates through filter history.</li>
+</ul>
+
+
+<!-- 35. Keyboard Shortcuts Reference -->
+<h2 id="shortcuts-ref">35. Keyboard Shortcuts Reference</h2>
+
+<table>
+  <tr><th>Key</th><th>Action</th><th>Context</th></tr>
+  <tr><td><kbd>?</kbd></td><td>Show keyboard shortcuts help</td><td>Anywhere</td></tr>
+  <tr><td><kbd>Esc</kbd></td><td>Clear all filters / Close modals</td><td>Anywhere</td></tr>
+  <tr><td><kbd>Ctrl+F</kbd></td><td>Focus search / filter field</td><td>Anywhere</td></tr>
+  <tr><td><kbd>&#8593;</kbd></td><td>Previous packet</td><td>Packet table</td></tr>
+  <tr><td><kbd>&#8595;</kbd></td><td>Next packet</td><td>Packet table</td></tr>
+  <tr><td><kbd>Enter</kbd></td><td>Open packet detail</td><td>With packet selected</td></tr>
+  <tr><td><kbd>B</kbd></td><td>Toggle bookmark</td><td>With packet selected</td></tr>
+  <tr><td><kbd>F</kbd></td><td>Toggle fullscreen panel</td><td>Hover over a panel</td></tr>
+  <tr><td><kbd>S</kbd></td><td>Follow TCP Stream</td><td>With TCP packet selected</td></tr>
+  <tr><td><kbd>G</kbd></td><td>Open GeoIP Map</td><td>Anywhere</td></tr>
+  <tr><td><kbd>C</kbd></td><td>Open Conversations</td><td>Anywhere</td></tr>
+  <tr><td><kbd>T</kbd></td><td>Toggle dark / light theme</td><td>Anywhere</td></tr>
+  <tr><td><kbd>D</kbd></td><td>Protocol Statistics</td><td>Anywhere</td></tr>
+  <tr><td><kbd>X</kbd></td><td>File &amp; Credential Extraction</td><td>Anywhere</td></tr>
+  <tr><td><kbd>W</kbd></td><td>Flow / Sequence Diagram</td><td>Anywhere</td></tr>
+  <tr><td><kbd>I</kbd></td><td>IO Graph</td><td>Anywhere</td></tr>
+  <tr><td><kbd>L</kbd></td><td>Latency &amp; RTT Analysis</td><td>Anywhere</td></tr>
+  <tr><td><kbd>N</kbd></td><td>Notes / Annotations</td><td>Anywhere</td></tr>
+  <tr><td><kbd>A</kbd></td><td>Alert Rules Engine</td><td>Anywhere</td></tr>
+  <tr><td><kbd>M</kbd></td><td>Connection State Machine</td><td>Anywhere</td></tr>
+  <tr><td><kbd>H</kbd></td><td>Toggle Heatmap Timeline</td><td>Anywhere</td></tr>
+  <tr><td><kbd>1</kbd></td><td>Fullscreen: Network Graph</td><td>Anywhere</td></tr>
+  <tr><td><kbd>2</kbd></td><td>Fullscreen: Timeline</td><td>Anywhere</td></tr>
+  <tr><td><kbd>3</kbd></td><td>Fullscreen: Protocol Charts</td><td>Anywhere</td></tr>
+  <tr><td><kbd>4</kbd></td><td>Fullscreen: Packet Table</td><td>Anywhere</td></tr>
+</table>
+
+
+<!-- 36. Architecture & Security -->
+<h2 id="architecture">36. Architecture &amp; Security</h2>
+
+<h3>Desktop Application</h3>
+<p>CyntricaVIZ is packaged as a native desktop application using <strong>Tauri v2</strong>. The Rust backend handles file I/O through a secure command with path canonicalization, extension whitelisting (.pcap, .pcapng, .cap only), and a 200 MB file size limit. The frontend runs in the system WebView (WebKit on macOS, WebView2 on Windows, WebKitGTK on Linux).</p>
+
+<h3>Content Security Policy</h3>
+<p>A strict CSP is enforced: scripts are only allowed from <code>'self'</code> and the pinned D3.js CDN (with SRI integrity hash). Inline scripts are blocked. Styles allow <code>'unsafe-inline'</code> (required for D3 dynamic styling). Connections are restricted to <code>ipc:</code>, <code>tauri:</code>, and <code>asset:</code> protocols &mdash; no external network requests are possible.</p>
+
+<h3>Privacy</h3>
+<p>All packet parsing and analysis happens locally. No data is sent to any server. Annotations are stored in localStorage with sanitized keys and a size limit. The application has no network access beyond loading the D3.js library from CDN on first launch.</p>
+
+<h3>Performance</h3>
+<p>CyntricaVIZ is optimized for large captures (100K+ packets) with virtual scrolling, DOM node pooling, async chunked processing for heavy operations (extraction, IoC scanning), cached D3 simulations, cached heatmap grids, cached connection state data, cached coloring rule evaluations, and O(n) algorithms for flood detection in the alert engine.</p>
+
+<div class="callout callout-info" style="margin-top: 32px;">
+  <div class="callout-label">About</div>
+  CyntricaVIZ v0.1 is built with <strong>Tauri v2</strong> (Rust) and <strong>D3.js v7</strong> for visualizations. The entire frontend is vanilla JavaScript with no build step or framework dependencies. All analysis runs offline on your machine.
+</div>
+
+</main>
+</div>
+</body>
+</html>
