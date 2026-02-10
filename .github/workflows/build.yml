@@ -49,6 +49,11 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Prepare frontend dist
+        run: |
+          mkdir -p dist
+          cp app.js pcap-parser.js index.html style.css guide.html cyntrica-logo.svg capturedemo.pcapng dist/
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
