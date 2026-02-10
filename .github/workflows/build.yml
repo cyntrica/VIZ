@@ -50,6 +50,7 @@ jobs:
         run: npm ci
 
       - name: Prepare frontend dist
+        shell: bash
         run: |
           mkdir -p dist
           cp app.js pcap-parser.js index.html style.css guide.html cyntrica-logo.svg capturedemo.pcapng dist/
