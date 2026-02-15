@@ -1,6 +1,6 @@
 [package]
 name = "cyntrica-viz"
-version = "0.1.0"
+version = "0.1.1"
 description = "CyntricaVIZ - Network Packet Analyzer & Visualizer"
 authors = ["Cyntrica"]
 license = "MIT"
