@@ -74,18 +74,18 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'CyntricaVIZ ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New in v0.1.1
+            ## What's New in v0.1.2
 
             **Security**
-            - Hardened IoC results rendering against potential XSS via escaped badge markup
+            - Tooltip rendering hardened with explicit safe/raw HTML modes
+            - Tunnel flag values escaped in packet detail view
+            - CSV export now escapes quotes and neutralizes formula injection
+            - Fixed annotation storage key collision for similarly-named files
 
             **Performance**
-            - Single-pass packet filtering — eliminates up to 6 intermediate array allocations per filter cycle
-            - O(1) TCP stream lookup via pre-built stream index (replaces full O(n) packet scan)
-
-            **Maintainability**
-            - Split monolithic 2,049-line app.js into 5 focused ES modules (state, dom, rendering, features, setup)
-            - Native ES module loading — no bundler required
+            - Protocol statistics cached per modal session (no re-filtering on tab switch)
+            - HTTP object reconstruction reuses pre-built stream index
+            - TCP connection state analysis reuses stream index (eliminates redundant packet scan)
 
             Download the installer for your platform below.
           releaseDraft: true

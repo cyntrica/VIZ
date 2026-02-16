@@ -47,7 +47,7 @@ export const els={
   btnHeatmapToggle:$('btn-heatmap-toggle'),
 };
 
-export function showTooltip(html,x,y){els.tooltip.innerHTML=html;els.tooltip.classList.remove('hidden');els.tooltip.style.left=Math.min(x+10,window.innerWidth-330)+'px';els.tooltip.style.top=Math.min(y+10,window.innerHeight-100)+'px';}
+export function showTooltip(content,x,y,{raw=false}={}){if(raw)els.tooltip.innerHTML=content;else els.tooltip.textContent=content;els.tooltip.classList.remove('hidden');els.tooltip.style.left=Math.min(x+10,window.innerWidth-330)+'px';els.tooltip.style.top=Math.min(y+10,window.innerHeight-100)+'px';}
 export function hideTooltip(){els.tooltip.classList.add('hidden');}
 
 export function showError(userMsg, err) {

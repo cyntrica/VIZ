@@ -101,8 +101,8 @@ export function renderNetworkGraph(){
     const hn=AppState.dnsMap.get(ip);if(hn)html+=`<div class="tip-label">Hostname</div><div class="tip-value">${escapeHTML(hn)}</div>`;
     const fp=AppState.osFingerprints.get(ip);if(fp)html+=`<div class="tip-label">OS</div><div class="tip-value">${escapeHTML(fp.os)} (${fp.confidence}%)</div>`;
     const tf=AppState.tunnelFlags.get(ip);if(tf&&tf.size>0)html+=`<div class="tip-label">Tunnels</div><div class="tip-value">${escapeHTML([...tf].join(', '))}</div>`;
-    const dw=AppState.darkWebFlags.get(ip);if(dw&&dw.size>0)html+=`<div class="tip-label">Dark Web Ports</div><div class="tip-value">${[...dw.entries()].map(([port,cnt])=>`${DARKWEB_PORTS[port]||port} (${cnt})`).join(', ')}</div>`;
-    showTooltip(html,e.pageX,e.pageY);
+    const dw=AppState.darkWebFlags.get(ip);if(dw&&dw.size>0)html+=`<div class="tip-label">Dark Web Ports</div><div class="tip-value">${[...dw.entries()].map(([port,cnt])=>`${escapeHTML(String(DARKWEB_PORTS[port]||port))} (${cnt})`).join(', ')}</div>`;
+    showTooltip(html,e.pageX,e.pageY,{raw:true});
   }).on('mouseout',hideTooltip);
   // Subnet hulls for L3
   let hullSel=null;
@@ -274,7 +274,7 @@ function renderPieChart(){
   slices.on('click',(e,d)=>{
     if(AppState.filters.protocolFilter===d.data.protocol)AppState.filters.protocolFilter=null;else AppState.filters.protocolFilter=d.data.protocol;
     onFilterChange();renderTimeline();
-  }).on('mouseover',(e,d)=>{showTooltip(`<div class="tip-value">${escapeHTML(d.data.protocol)}: ${d.data.count} packets</div>`,e.pageX,e.pageY);}).on('mouseout',hideTooltip);
+  }).on('mouseover',(e,d)=>{showTooltip(`<div class="tip-value">${escapeHTML(d.data.protocol)}: ${d.data.count} packets</div>`,e.pageX,e.pageY,{raw:true});}).on('mouseout',hideTooltip);
   const labelArc=d3.arc().innerRadius(radius*0.75).outerRadius(radius*0.75);
   g.selectAll('text').data(pie(data)).join('text').attr('transform',d=>`translate(${labelArc.centroid(d)})`).attr('text-anchor','middle').attr('font-size','10px').text(d=>d.data.count/d3.sum(data,dd=>dd.count)>0.05?d.data.protocol:'');
 }

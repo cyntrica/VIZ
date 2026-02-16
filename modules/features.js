@@ -24,7 +24,7 @@ export function showPacketDetail(pkt){
     const fp=AppState.osFingerprints.get(pkt.srcIP);
     if(fp)layerHTML+=`<div class="layer-group"><div class="layer-header">OS FINGERPRINT</div><div class="layer-fields"><div class="layer-field"><span class="field-name">OS: </span><span class="field-value">${escapeHTML(fp.os)} (${fp.confidence}%)</span></div><div class="layer-field"><span class="field-name">TTL: </span><span class="field-value">${fp.ttl}</span></div></div></div>`;
     const tf=AppState.tunnelFlags.get(pkt.srcIP);
-    if(tf&&tf.size)layerHTML+=`<div class="layer-group"><div class="layer-header">TUNNEL FLAGS</div><div class="layer-fields"><div class="layer-field"><span class="field-value">${[...tf].join(', ')}</span></div></div></div>`;
+    if(tf&&tf.size)layerHTML+=`<div class="layer-group"><div class="layer-header">TUNNEL FLAGS</div><div class="layer-fields"><div class="layer-field"><span class="field-value">${escapeHTML([...tf].join(', '))}</span></div></div></div>`;
     const dwSrc=AppState.darkWebFlags.get(pkt.srcIP);
     const dwDst=AppState.darkWebFlags.get(pkt.dstIP);
     if(dwSrc||dwDst){
@@ -100,10 +100,11 @@ export function showConversations(){
 export function toggleBookmark(num){if(AppState.bookmarks.has(num))AppState.bookmarks.delete(num);else AppState.bookmarks.add(num);renderVisibleRows();}
 
 // ===== Export =====
+function csvEscape(val){let s=String(val??'');if(/^[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
 export function exportCSV(){
-  const rows=[['#','Time','Source','Destination','Protocol','Length','Info','Anomalies','Notes']];
+  const rows=[['#','Time','Source','Destination','Protocol','Length','Info','Anomalies','Notes'].map(csvEscape)];
   for(const p of AppState.filteredPackets){
-    rows.push([p.number,p.relativeTime?.toFixed(6)||'',p.srcIP||'',p.dstIP||'',p.protocol,p.originalLength||p.capturedLength,`"${p.info}"`,p.anomalies.join('; '),`"${AppState.annotations.get(p.number)||''}"`]);
+    rows.push([p.number,p.relativeTime?.toFixed(6)||'',p.srcIP||'',p.dstIP||'',p.protocol,p.originalLength||p.capturedLength,p.info||'',p.anomalies.join('; '),AppState.annotations.get(p.number)||''].map(csvEscape));
   }
   downloadText(rows.map(r=>r.join(',')).join('\n'),'packets.csv','text/csv');
 }
@@ -223,6 +224,10 @@ function showComparison(){
 // ===== Protocol Stats =====
 export function showProtocolStats(){
   const pkts=AppState.packets;
+  // E1: Pre-compute per-protocol arrays once on modal open
+  const tcpPkts=pkts.filter(p=>p.protocol==='TCP'||p.protocol==='HTTP');
+  const dnsPkts=pkts.filter(p=>p.protocol==='DNS');
+  const httpPkts=pkts.filter(p=>p.protocol==='HTTP');
   function renderTab(tab){
     let html='';
     if(tab==='general'){
@@ -239,7 +244,6 @@ export function showProtocolStats(){
         <div class="stat-card"><div class="stat-label">Connections</div><div class="stat-value">${AppState.connections.size}</div></div>
       </div>`;
     } else if(tab==='tcp'){
-      const tcpPkts=pkts.filter(p=>p.protocol==='TCP'||p.protocol==='HTTP');
       const syns=tcpPkts.filter(p=>p.tcpFlags&&p.tcpFlags.SYN).length;
       const rsts=tcpPkts.filter(p=>p.tcpFlags&&p.tcpFlags.RST).length;
       const retrans=tcpPkts.filter(p=>p.anomalies.includes('Retransmission')).length;
@@ -254,7 +258,6 @@ export function showProtocolStats(){
         <div class="stat-card"><div class="stat-label">Unique Connections</div><div class="stat-value">${[...AppState.connections.values()].filter(c=>c.protocols.has('TCP')||c.protocols.has('HTTP')).length}</div></div>
       </div>`;
     } else if(tab==='dns'){
-      const dnsPkts=pkts.filter(p=>p.protocol==='DNS');
       const queries=dnsPkts.filter(p=>!p.dnsIsResponse);const responses=dnsPkts.filter(p=>p.dnsIsResponse);
       const nxdomain=dnsPkts.filter(p=>p.dnsRcode===3).length;
       const domains=new Map();for(const p of queries)if(p.dnsQueryName)domains.set(p.dnsQueryName,(domains.get(p.dnsQueryName)||0)+1);
@@ -268,7 +271,6 @@ export function showProtocolStats(){
       </div>`;
       if(topDomains.length)html+=`<h3 style="margin-top:12px;font-size:0.85rem">Top Queried Domains</h3><table class="stats-table"><thead><tr><th>Domain</th><th>Queries</th></tr></thead><tbody>${topDomains.map(([d,c])=>`<tr><td>${escapeHTML(d)}</td><td>${c}</td></tr>`).join('')}</tbody></table>`;
     } else if(tab==='http'){
-      const httpPkts=pkts.filter(p=>p.protocol==='HTTP');
       const reqs=httpPkts.filter(p=>p.httpMethod);const resps=httpPkts.filter(p=>p.httpStatusCode);
       const methods={};for(const p of reqs)methods[p.httpMethod]=(methods[p.httpMethod]||0)+1;
       const statuses={};for(const p of resps){const cat=Math.floor(p.httpStatusCode/100)+'xx';statuses[cat]=(statuses[cat]||0)+1;}
@@ -398,17 +400,9 @@ export function showExtractions(){
 // ===== Session Reconstruction & HTTP Object Export =====
 function reconstructHTTPObjects(){
   const objects=[];
-  const streams=new Map();
-  for(const p of AppState.packets){
-    if(!p.tcpFlags||!p.srcIP||!p.dstIP)continue;
-    const fwd=`${p.srcIP}:${p.srcPort}-${p.dstIP}:${p.dstPort}`;
-    const rev=`${p.dstIP}:${p.dstPort}-${p.srcIP}:${p.srcPort}`;
-    let key=streams.has(fwd)?fwd:streams.has(rev)?rev:fwd;
-    if(!streams.has(key))streams.set(key,[]);
-    streams.get(key).push(p);
-  }
-  for(const[key,pkts]of streams){
-    pkts.sort((a,b)=>a.timestamp-b.timestamp);
+  // E2: Reuse AppState.streamIndex instead of rebuilding stream map
+  for(const[key,streamPkts]of AppState.streamIndex){
+    const pkts=[...streamPkts].sort((a,b)=>a.timestamp-b.timestamp);
     let requestInfo=null;
     for(const p of pkts){
       if(p.httpMethod&&p.httpUrl)requestInfo={method:p.httpMethod,url:p.httpUrl,pkt:p.number};
@@ -631,7 +625,7 @@ export function showNotesModal(){
   els.notesModal.classList.remove('hidden');
 }
 const MAX_ANNOTATIONS_SIZE = 1024 * 1024;
-function _storageKey(name){return 'wsv-notes-'+name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,100);}
+function _storageKey(name){return 'wsv-notes-'+encodeURIComponent(name).slice(0,200);}
 export function saveAnnotations(){try{const data=JSON.stringify([...AppState.annotations]);if(data.length>MAX_ANNOTATIONS_SIZE){console.warn('Annotations too large to save (',data.length,'bytes)');return;}localStorage.setItem(_storageKey(AppState.fileName),data);}catch{}}
 export function loadAnnotations(){try{const d=localStorage.getItem(_storageKey(AppState.fileName));if(d){const parsed=JSON.parse(d);if(Array.isArray(parsed))AppState.annotations=new Map(parsed);}}catch{}}
 
@@ -712,30 +706,28 @@ export function showConnStateModal(){
 }
 function _buildConnStateCache(){
   if(AppState.connStateCache)return AppState.connStateCache;
-  const connMap=new Map();
-  for(const p of AppState.packets){
-    if(!p.tcpFlags||!p.srcIP||!p.dstIP)continue;
-    const fwd=`${p.srcIP}:${p.srcPort}-${p.dstIP}:${p.dstPort}`;
-    const rev=`${p.dstIP}:${p.dstPort}-${p.srcIP}:${p.srcPort}`;
-    let key=connMap.has(fwd)?fwd:connMap.has(rev)?rev:null;
-    if(!key){
-      if(p.tcpFlags.SYN&&!p.tcpFlags.ACK)key=fwd;
-      else key=[p.srcIP+':'+p.srcPort,p.dstIP+':'+p.dstPort].sort().join('-');
-    }
-    if(!connMap.has(key))connMap.set(key,{client:p.srcIP+':'+p.srcPort,server:p.dstIP+':'+p.dstPort,events:[],packets:0,bytes:0,firstTs:p.timestamp,lastTs:p.timestamp});
-    const conn=connMap.get(key);
-    conn.packets++;conn.bytes+=(p.originalLength||p.capturedLength);
-    if(p.timestamp<conn.firstTs)conn.firstTs=p.timestamp;
-    if(p.timestamp>conn.lastTs)conn.lastTs=p.timestamp;
-    const isClient=(p.srcIP+':'+p.srcPort)===conn.client;
-    if(p.tcpFlags.SYN&&!p.tcpFlags.ACK)conn.events.push({type:'SYN',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
-    else if(p.tcpFlags.SYN&&p.tcpFlags.ACK)conn.events.push({type:'SYN-ACK',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
-    else if(p.tcpFlags.FIN)conn.events.push({type:'FIN',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
-    else if(p.tcpFlags.RST)conn.events.push({type:'RST',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
-    else if(p.tcpPayloadLength>0)conn.events.push({type:'DATA',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number,size:p.tcpPayloadLength});
-  }
+  // E3: Reuse AppState.streamIndex instead of re-scanning all packets
   const connections=[];
-  for(const[key,conn]of connMap){
+  for(const[stk,streamPkts]of AppState.streamIndex){
+    // Determine client (first SYN sender, or first packet sender)
+    let clientAddr=null;
+    for(const p of streamPkts){if(p.tcpFlags&&p.tcpFlags.SYN&&!p.tcpFlags.ACK){clientAddr=p.srcIP+':'+p.srcPort;break;}}
+    if(!clientAddr&&streamPkts.length>0)clientAddr=streamPkts[0].srcIP+':'+streamPkts[0].srcPort;
+    const firstP=streamPkts[0];
+    const serverAddr=clientAddr===(firstP.srcIP+':'+firstP.srcPort)?firstP.dstIP+':'+firstP.dstPort:firstP.srcIP+':'+firstP.srcPort;
+    const conn={client:clientAddr,server:serverAddr,events:[],packets:0,bytes:0,firstTs:Infinity,lastTs:0};
+    for(const p of streamPkts){
+      conn.packets++;conn.bytes+=(p.originalLength||p.capturedLength);
+      if(p.timestamp<conn.firstTs)conn.firstTs=p.timestamp;
+      if(p.timestamp>conn.lastTs)conn.lastTs=p.timestamp;
+      if(!p.tcpFlags)continue;
+      const isClient=(p.srcIP+':'+p.srcPort)===conn.client;
+      if(p.tcpFlags.SYN&&!p.tcpFlags.ACK)conn.events.push({type:'SYN',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
+      else if(p.tcpFlags.SYN&&p.tcpFlags.ACK)conn.events.push({type:'SYN-ACK',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
+      else if(p.tcpFlags.FIN)conn.events.push({type:'FIN',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
+      else if(p.tcpFlags.RST)conn.events.push({type:'RST',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number});
+      else if(p.tcpPayloadLength>0)conn.events.push({type:'DATA',from:isClient?'client':'server',ts:p.timestamp,pkt:p.number,size:p.tcpPayloadLength});
+    }
     const types=new Set(conn.events.map(e=>e.type));
     let state='unknown';
     if(types.has('RST'))state='reset';
@@ -743,7 +735,7 @@ function _buildConnStateCache(){
     else if(types.has('SYN')&&types.has('SYN-ACK'))state='established';
     else if(types.has('SYN')&&!types.has('SYN-ACK'))state='halfopen';
     else if(types.has('DATA'))state='data-only';
-    conn.state=state;conn.key=key;
+    conn.state=state;conn.key=stk;
     connections.push(conn);
   }
   connections.sort((a,b)=>b.packets-a.packets);
