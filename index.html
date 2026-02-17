@@ -102,6 +102,30 @@
         </div>
       </div>
 
+      <div class="panel" id="panel-protocols">
+        <div class="panel-header">
+          <h2>Protocol Breakdown</h2>
+          <div class="panel-header-actions">
+            <button class="btn-icon btn-expand" title="Expand (or press F)">&#x26F6;</button>
+            <button class="btn-icon btn-screenshot" title="Export as PNG">&#x1F4F7;</button>
+          </div>
+        </div>
+        <div class="panel-body protocol-panel-body">
+          <div id="chart-breadcrumb" class="chart-breadcrumb hidden">
+            <button id="btn-chart-back" class="btn-breadcrumb">&larr; All Protocols</button>
+            <span class="breadcrumb-current"></span>
+          </div>
+          <div class="protocol-charts">
+            <div class="chart-container">
+              <svg id="protocol-pie"></svg>
+            </div>
+            <div class="chart-container">
+              <svg id="protocol-bar"></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel" id="panel-timeline">
         <div class="panel-header">
           <h2>Timeline</h2>
@@ -116,24 +140,6 @@
           <canvas id="timeline-canvas"></canvas>
           <svg id="timeline-svg"></svg>
           <svg id="timeline-brush"></svg>
-        </div>
-      </div>
-
-      <div class="panel" id="panel-protocols">
-        <div class="panel-header">
-          <h2>Protocol Breakdown</h2>
-          <div class="panel-header-actions">
-            <button class="btn-icon btn-expand" title="Expand (or press F)">&#x26F6;</button>
-            <button class="btn-icon btn-screenshot" title="Export as PNG">&#x1F4F7;</button>
-          </div>
-        </div>
-        <div class="panel-body protocol-charts">
-          <div class="chart-container">
-            <svg id="protocol-pie"></svg>
-          </div>
-          <div class="chart-container">
-            <svg id="protocol-bar"></svg>
-          </div>
         </div>
       </div>
 

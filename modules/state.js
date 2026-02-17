@@ -2,7 +2,43 @@
 'use strict';
 
 // ===== Constants =====
-export const PROTOCOL_COLORS = { TCP:'#4fc3f7', UDP:'#81c784', DNS:'#ffb74d', HTTP:'#e57373', ICMP:'#ba68c8', ICMPv6:'#9575cd', ARP:'#fff176', IPv6:'#4dd0e1', Other:'#90a4ae' };
+export const PROTOCOL_COLORS = {
+  // Core transport/network
+  TCP:'#4fc3f7', UDP:'#81c784', ICMP:'#ba68c8', ICMPv6:'#9575cd', ARP:'#fff176', IPv6:'#4dd0e1',
+  // Original app protocols
+  DNS:'#ffb74d', HTTP:'#e57373', DHCP:'#c084fc', NTP:'#26a69a', TFTP:'#8d6e63', TLS:'#42a5f5',
+  SSH:'#78909c', SMTP:'#ef5350', FTP:'#ffa726',
+  // UDP protocols
+  QUIC:'#7c4dff', mDNS:'#ff9800', SSDP:'#ab47bc', NBNS:'#5c6bc0', LLMNR:'#29b6f6',
+  SNMP:'#66bb6a', Syslog:'#8d6e63', SIP:'#ec407a', RTP:'#26c6da', STUN:'#9ccc65',
+  RADIUS:'#7e57c2', NetFlow:'#78909c', VXLAN:'#42a5f5', ISAKMP:'#ef6c00', DTLS:'#5c6bc0',
+  CoAP:'#00897b', DHCPv6:'#ab47bc', L2TP:'#8d6e63', RIPv2:'#a1887f', WireGuard:'#7cb342',
+  OpenVPN:'#43a047', BACnet:'#f4511e', 'NetBIOS-DGM':'#8d6e63',
+  // TCP protocols
+  IMAP:'#d81b60', POP3:'#c62828', SMB:'#1565c0', RDP:'#0277bd', LDAP:'#00838f',
+  Kerberos:'#6a1b9a', RTSP:'#00695c', MySQL:'#e65100', PostgreSQL:'#1565c0', Redis:'#c62828',
+  MongoDB:'#2e7d32', Memcached:'#827717', MQTT:'#00838f', AMQP:'#4527a0', BGP:'#37474f',
+  Telnet:'#ff8f00', IRC:'#6d4c41', XMPP:'#00695c', SOCKS:'#546e7a', Modbus:'#bf360c',
+  DNP3:'#880e4f', 'EtherNet/IP':'#e65100', S7comm:'#b71c1c', MSSQL:'#1a237e',
+  Oracle:'#b71c1c', Elasticsearch:'#f9a825', RTMP:'#ad1457', PPTP:'#4e342e',
+  BitTorrent:'#33691e', 'NetBIOS-SSN':'#795548',
+  // IP protocol layer
+  GRE:'#607d8b', IGMP:'#8bc34a', OSPF:'#009688', ESP:'#455a64', AH:'#546e7a',
+  VRRP:'#e91e63', SCTP:'#3f51b5', PIM:'#cddc39', EIGRP:'#ff5722',
+  // EtherType protocols
+  LLDP:'#00bcd4', MPLS:'#ff6f00', 'MPLS-MC':'#ff8f00', EAPOL:'#d50000',
+  'PPPoE-D':'#6d4c41', 'PPPoE-S':'#795548', LACP:'#0097a7',
+  // Batch 3 protocols
+  DICOM:'#7b1fa2', HL7:'#c2185b', VNC:'#00796b', Cassandra:'#f57f17',
+  ZeroMQ:'#e64a19', WHOIS:'#455a64', 'HTTP-Proxy':'#d84315', SunRPC:'#558b2f',
+  'TACACS+':'#4a148c', Diameter:'#0d47a1', RTCP:'#00acc1', HSRP:'#ff6d00',
+  GTP:'#1b5e20', 'RADIUS-Acct':'#6a1b9a', 'NTP-Control':'#1a237e',
+  // Secure variants + legacy
+  FTPS:'#ff7043', LDAPS:'#0288d1', IMAPS:'#ad1457', POP3S:'#b71c1c',
+  Finger:'#8d6e63', Gopher:'#6d4c41',
+  // Fallback
+  Other:'#90a4ae',
+};
 export const protoColor = p => PROTOCOL_COLORS[p] || PROTOCOL_COLORS.Other;
 export const ROW_HEIGHT = 24, BUFFER = 10;
 
@@ -61,6 +97,23 @@ export function safeRegexTest(pattern, str) {
   try { return new RegExp(pattern, 'i').test(String(str)); } catch { return false; }
 }
 
+// Transport group classification for drill-down charts
+export function getTransportGroup(packet) {
+  if (packet.tcpFlags != null) return 'TCP';
+  if (packet.layers && packet.layers.udp) return 'UDP';
+  if (packet.protocol === 'ICMP' || packet.protocol === 'ICMPv6') return 'ICMP';
+  if (packet.protocol === 'ARP') return 'ARP';
+  return 'Other';
+}
+
+export const TRANSPORT_GROUP_COLORS = {
+  TCP: '#4fc3f7',
+  UDP: '#81c784',
+  ICMP: '#ffb74d',
+  ARP: '#ba68c8',
+  Other: '#90a4ae',
+};
+
 export function isPrivateIP(ip){
   if(!ip||ip.includes(':'))return false;
   const p=ip.split('.').map(Number);
@@ -76,8 +129,8 @@ export function getDarkWebLabel(port){return DARKWEB_PORTS[port]||null;}
 // ===== Display Filter Parser (Feature 9) =====
 export const FILTER_FIELDS = {
   'ip.src':{get:p=>p.srcIP,type:'string'},'ip.dst':{get:p=>p.dstIP,type:'string'},
-  'tcp.port':{get:p=>(p.protocol==='TCP'||p.protocol==='HTTP')?[p.srcPort,p.dstPort]:null,type:'port'},
-  'udp.port':{get:p=>(p.protocol==='UDP'||p.protocol==='DNS')?[p.srcPort,p.dstPort]:null,type:'port'},
+  'tcp.port':{get:p=>p.tcpFlags!=null?[p.srcPort,p.dstPort]:null,type:'port'},
+  'udp.port':{get:p=>p.layers.udp?[p.srcPort,p.dstPort]:null,type:'port'},
   'tcp.srcport':{get:p=>p.srcPort,type:'number'},'tcp.dstport':{get:p=>p.dstPort,type:'number'},
   'tcp.flags.syn':{get:p=>p.tcpFlags?p.tcpFlags.SYN:false,type:'boolean'},
   'tcp.flags.rst':{get:p=>p.tcpFlags?p.tcpFlags.RST:false,type:'boolean'},
@@ -87,6 +140,36 @@ export const FILTER_FIELDS = {
   'dns.qname':{get:p=>p.dnsQueryName,type:'string'},'http.method':{get:p=>p.httpMethod,type:'string'},
   'http.status':{get:p=>p.httpStatusCode,type:'number'},'eth.src':{get:p=>p.srcMAC,type:'string'},
   'eth.dst':{get:p=>p.dstMAC,type:'string'},'ip.ttl':{get:p=>p.ttl,type:'number'},
+  // App protocol filter fields
+  'tls.version':{get:p=>p.layers.tls?.version,type:'string'},
+  'tls.handshake':{get:p=>p.layers.tls?.handshakeType,type:'string'},
+  'ssh.version':{get:p=>p.layers.ssh?.version,type:'string'},
+  'dhcp.type':{get:p=>p.layers.dhcp?.messageType,type:'string'},
+  'smtp.command':{get:p=>p.layers.smtp?.command,type:'string'},
+  'ftp.command':{get:p=>p.layers.ftp?.command,type:'string'},
+  // New protocol filter fields
+  'snmp.version':{get:p=>p.layers.snmp?.version,type:'string'},
+  'snmp.pdu':{get:p=>p.layers.snmp?.pduType,type:'string'},
+  'sip.method':{get:p=>p.layers.sip?.method,type:'string'},
+  'rtp.pt':{get:p=>p.layers.rtp?.payloadType,type:'number'},
+  'mqtt.type':{get:p=>p.layers.mqtt?.messageType,type:'string'},
+  'bgp.type':{get:p=>p.layers.bgp?.messageType,type:'string'},
+  'ldap.op':{get:p=>p.layers.ldap?.operation,type:'string'},
+  'smb.command':{get:p=>p.layers.smb?.command,type:'string'},
+  'modbus.func':{get:p=>p.layers.modbus?.functionName,type:'string'},
+  'mysql.type':{get:p=>p.layers.mysql?.type,type:'string'},
+  'redis.command':{get:p=>p.layers.redis?.command,type:'string'},
+  'mongodb.op':{get:p=>p.layers.mongodb?.opCode,type:'string'},
+  'quic.version':{get:p=>p.layers.quic?.version,type:'string'},
+  'imap.command':{get:p=>p.layers.imap?.command,type:'string'},
+  'pop3.command':{get:p=>p.layers.pop3?.command,type:'string'},
+  'kerberos.type':{get:p=>p.layers.kerberos?.messageType,type:'string'},
+  'ospf.type':{get:p=>p.layers.ospf?.type,type:'string'},
+  'syslog.severity':{get:p=>p.layers.syslog?.severityName,type:'string'},
+  'radius.code':{get:p=>p.layers.radius?.code,type:'string'},
+  'sctp.chunk':{get:p=>p.layers.sctp?.chunkType,type:'string'},
+  'dnp3.func':{get:p=>p.layers.dnp3?.functionCode,type:'string'},
+  'irc.command':{get:p=>p.layers.irc?.command,type:'string'},
 };
 
 export function parseFilterExpr(expr) {
@@ -171,7 +254,8 @@ export const AppState = {
   packets:[], filteredPackets:[], fileInfo:null, fileName:'',
   hosts:new Map(), connections:new Map(), protocolStats:new Map(), dnsMap:new Map(),
   bookmarks:new Set(), selectedPacketIdx:-1, sortColumn:'number', sortAscending:true,
-  filters:{selectedHost:null,protocolFilter:null,searchText:'',timeRange:null,anomalyOnly:false,bookmarkOnly:false},
+  chartDrilldown: null,  // null = transport groups, or 'TCP'/'UDP'/'ICMP'/'ARP'/'Other'
+  filters:{selectedHost:null,protocolFilter:null,transportGroup:null,searchText:'',timeRange:null,anomalyOnly:false,bookmarkOnly:false},
   filterError:'', osFingerprints:new Map(), tunnelFlags:new Map(),
   diffPacketB:null, annotations:new Map(), coloringProfile:'default', coloringRules:[], graphLayer:'L3', graphHostLimit:50,
   iocList:[], iocMatches:[], darkWebFlags:new Map(), heatmapMode:false, alertRules:[], alertResults:[], subnetGroups:new Map(),
@@ -265,6 +349,7 @@ export const AppState = {
     for(let i=0;i<this.packets.length;i++){
       const p=this.packets[i];
       if(f.selectedHost&&p.srcIP!==f.selectedHost&&p.dstIP!==f.selectedHost)continue;
+      if(f.transportGroup&&getTransportGroup(p)!==f.transportGroup)continue;
       if(f.protocolFilter&&p.protocol!==f.protocolFilter)continue;
       if(filterFn&&!filterFn(p))continue;
       if(textQuery&&!`${p.srcIP||''} ${p.dstIP||''} ${p.protocol} ${p.info} ${p.srcPort||''} ${p.dstPort||''} ${p.srcMAC||''} ${p.dstMAC||''}`.toLowerCase().includes(textQuery))continue;

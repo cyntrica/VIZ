@@ -1,6 +1,6 @@
 {
   "name": "cyntricaviz",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "CyntricaVIZ - Network Packet Analyzer & Visualizer",
   "scripts": {
     "tauri": "tauri"

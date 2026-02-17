@@ -3,7 +3,7 @@
 
 import { AppState, FILTER_FIELDS, debounce, escapeHTML, invalidateColoringCache } from './state.js';
 import { els, showError, closeAllModals, hideNotePopover } from './dom.js';
-import { renderAll, renderTimeline, renderPacketTable, renderVisibleRows, renderNetworkGraph, onFilterChange, loadStateFromURL } from './rendering.js';
+import { renderAll, renderTimeline, renderPacketTable, renderVisibleRows, renderNetworkGraph, renderProtocolCharts, onFilterChange, loadStateFromURL } from './rendering.js';
 import { showPacketDetail, closeDetailPane, followTCPStream, showConversations, toggleBookmark, exportCSV, exportJSON, screenshotPanel, toggleTheme, togglePanelFullscreen, showGeoIPMap, loadCompareFile, showProtocolStats, showExtractions, showLatency, showSequenceDiagram, renderSequenceSVG, showIOGraph, renderIOGraphSVG, showPacketDiff, showNotesModal, showNotePopover, saveAnnotation, deleteAnnotation, loadAnnotations, showIoCModal, scanIoCs, showAlertsModal, renderAlertRules, runAlertRules, showConnStateModal, renderConnState, showColoringModal, renderColoringRules } from './features.js';
 
 // ===== Upload =====
@@ -148,7 +148,8 @@ function setupKeyboard(){
         const fsPanel=document.querySelector('.panel.fullscreen');
         if(fsPanel){togglePanelFullscreen(fsPanel);break;}
         closeAllModals();closeDetailPane();
-        AppState.filters={selectedHost:null,protocolFilter:null,searchText:'',timeRange:null,anomalyOnly:false,bookmarkOnly:false};
+        AppState.chartDrilldown=null;
+        AppState.filters={selectedHost:null,protocolFilter:null,transportGroup:null,searchText:'',timeRange:null,anomalyOnly:false,bookmarkOnly:false};
         els.tableSearch.value='';els.tableProtoFilter.value='';
         els.tableAnomalyFilter.checked=false;els.tableBookmarkFilter.checked=false;
         document.querySelectorAll('.table-header-row .col').forEach(c=>c.classList.remove('sorted-asc','sorted-desc'));
@@ -188,7 +189,10 @@ function setupKeyboard(){
 
 // ===== Buttons =====
 function setupButtons(){
-  els.btnResetFilters.addEventListener('click',()=>{AppState.filters={selectedHost:null,protocolFilter:null,searchText:'',timeRange:null,anomalyOnly:false,bookmarkOnly:false};els.tableSearch.value='';els.tableProtoFilter.value='';els.tableAnomalyFilter.checked=false;els.tableBookmarkFilter.checked=false;onFilterChange();renderTimeline();});
+  els.btnResetFilters.addEventListener('click',()=>{AppState.chartDrilldown=null;AppState.filters={selectedHost:null,protocolFilter:null,transportGroup:null,searchText:'',timeRange:null,anomalyOnly:false,bookmarkOnly:false};els.tableSearch.value='';els.tableProtoFilter.value='';els.tableAnomalyFilter.checked=false;els.tableBookmarkFilter.checked=false;onFilterChange();renderTimeline();renderProtocolCharts();});
+  // Chart drill-down breadcrumb back button
+  const btnChartBack=document.getElementById('btn-chart-back');
+  if(btnChartBack)btnChartBack.addEventListener('click',()=>{AppState.chartDrilldown=null;AppState.filters.transportGroup=null;AppState.filters.protocolFilter=null;onFilterChange();renderTimeline();renderProtocolCharts();});
   els.btnNewFile.addEventListener('click',()=>{els.dashboard.classList.add('hidden');els.uploadOverlay.classList.remove('hidden');AppState.packets=[];AppState.filteredPackets=[];});
   els.btnConversations.addEventListener('click',showConversations);
   els.btnCompare.addEventListener('click',loadCompareFile);

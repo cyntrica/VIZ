@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.3
+
+### Features
+- Two-level drill-down protocol charts — top level shows transport groups (TCP/UDP/ICMP/ARP/Other), click to drill into application-layer protocols
+- Pie chart leader-line labels for small slices (<3%) with clamped positioning to prevent overflow
+- Swapped Timeline and Protocol Breakdown panel positions — protocol charts beside network graph, timeline full-width below
+
+### Parser
+- Expanded protocol registry to 100+ protocols with 3-tier dispatch (TCP/UDP port, IP protocol number, EtherType)
+- Fixed TextDecoder encoding bug (replaced 'ascii' with default UTF-8)
+
 ## v0.1.2
 
 ### Security

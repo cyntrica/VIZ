@@ -1,7 +1,7 @@
 // modules/rendering.js — Network graph, timeline, heatmap, charts, packet table, virtual-scroll
 'use strict';
 
-import { AppState, $, protoColor, formatBytes, escapeHTML, hexToRGBA, debounce, isPrivateIP, getSubnet, getDarkWebLabel, evaluateColoringRules, ROW_HEIGHT, BUFFER, DARKWEB_PORTS, SUBNET_COLORS } from './state.js';
+import { AppState, $, protoColor, formatBytes, escapeHTML, hexToRGBA, debounce, isPrivateIP, getSubnet, getDarkWebLabel, evaluateColoringRules, ROW_HEIGHT, BUFFER, DARKWEB_PORTS, SUBNET_COLORS, getTransportGroup, TRANSPORT_GROUP_COLORS } from './state.js';
 import { els, showTooltip, hideTooltip } from './dom.js';
 
 // ===== Render entry points =====
@@ -259,38 +259,162 @@ export function renderHeatmapTimeline(){
   brushSvg.append('g').call(brush);
 }
 
-// ===== Protocol Charts =====
-export function renderProtocolCharts(){renderPieChart();renderBarChart();}
-function renderPieChart(){
-  const c=$('panel-protocols').querySelector('.chart-container');if(!c)return;
-  const svg=d3.select('#protocol-pie');svg.selectAll('*').remove();
-  const W=c.clientWidth,H=c.clientHeight;if(!W||!H)return;
-  svg.attr('viewBox',`0 0 ${W} ${H}`);
-  const data=[...AppState.protocolStats.entries()].map(([k,v])=>({protocol:k,count:v})).sort((a,b)=>b.count-a.count);
-  if(!data.length)return;
-  const radius=Math.min(W,H)/2-30;const g=svg.append('g').attr('transform',`translate(${W/2},${H/2})`);
-  const pie=d3.pie().value(d=>d.count).sort(null);const arc=d3.arc().innerRadius(radius*0.4).outerRadius(radius);
-  const slices=g.selectAll('path').data(pie(data)).join('path').attr('d',arc).attr('fill',d=>protoColor(d.data.protocol)).attr('stroke','rgba(0,0,0,0.3)').attr('stroke-width',1).style('cursor','pointer');
-  slices.on('click',(e,d)=>{
-    if(AppState.filters.protocolFilter===d.data.protocol)AppState.filters.protocolFilter=null;else AppState.filters.protocolFilter=d.data.protocol;
-    onFilterChange();renderTimeline();
-  }).on('mouseover',(e,d)=>{showTooltip(`<div class="tip-value">${escapeHTML(d.data.protocol)}: ${d.data.count} packets</div>`,e.pageX,e.pageY,{raw:true});}).on('mouseout',hideTooltip);
-  const labelArc=d3.arc().innerRadius(radius*0.75).outerRadius(radius*0.75);
-  g.selectAll('text').data(pie(data)).join('text').attr('transform',d=>`translate(${labelArc.centroid(d)})`).attr('text-anchor','middle').attr('font-size','10px').text(d=>d.data.count/d3.sum(data,dd=>dd.count)>0.05?d.data.protocol:'');
+// ===== Protocol Charts (Two-Level Drill-Down) =====
+function getChartData() {
+  // Level 1: transport groups (TCP, UDP, ICMP, ARP, Other)
+  if (AppState.chartDrilldown === null) {
+    const groups = { TCP: 0, UDP: 0, ICMP: 0, ARP: 0, Other: 0 };
+    for (const p of AppState.packets) {
+      const g = getTransportGroup(p);
+      groups[g] = (groups[g] || 0) + 1;
+    }
+    return Object.entries(groups).filter(([, v]) => v > 0).map(([k, v]) => ({ protocol: k, count: v })).sort((a, b) => b.count - a.count);
+  }
+  // Level 2: app protocols within the drilled-down transport group (from filtered packets)
+  const stats = new Map();
+  for (const p of AppState.filteredPackets) {
+    stats.set(p.protocol, (stats.get(p.protocol) || 0) + 1);
+  }
+  return [...stats.entries()].map(([k, v]) => ({ protocol: k, count: v })).sort((a, b) => b.count - a.count);
 }
-function renderBarChart(){
-  const containers=$('panel-protocols').querySelectorAll('.chart-container');const c=containers[1];if(!c)return;
-  const svg=d3.select('#protocol-bar');svg.selectAll('*').remove();
-  const W=c.clientWidth,H=c.clientHeight;if(!W||!H)return;
-  svg.attr('viewBox',`0 0 ${W} ${H}`);
-  const data=[...AppState.protocolStats.entries()].map(([k,v])=>({protocol:k,count:v})).sort((a,b)=>b.count-a.count).slice(0,8);
-  if(!data.length)return;
-  const m={top:10,right:10,bottom:30,left:50};
-  const x=d3.scaleBand().domain(data.map(d=>d.protocol)).range([m.left,W-m.right]).padding(0.3);
-  const y=d3.scaleLinear().domain([0,d3.max(data,d=>d.count)]).nice().range([H-m.bottom,m.top]);
-  svg.append('g').attr('class','axis').attr('transform',`translate(0,${H-m.bottom})`).call(d3.axisBottom(x).tickSize(0));
-  svg.append('g').attr('class','axis').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2s')));
-  svg.selectAll('.bar').data(data).join('rect').attr('class','bar').attr('x',d=>x(d.protocol)).attr('y',d=>y(d.count)).attr('width',x.bandwidth()).attr('height',d=>H-m.bottom-y(d.count)).attr('fill',d=>protoColor(d.protocol)).attr('rx',3);
+
+function chartColor(name) {
+  if (AppState.chartDrilldown === null) return TRANSPORT_GROUP_COLORS[name] || '#90a4ae';
+  return protoColor(name);
+}
+
+function updateBreadcrumb() {
+  const bc = $('chart-breadcrumb');
+  if (!bc) return;
+  if (AppState.chartDrilldown === null) {
+    bc.classList.add('hidden');
+  } else {
+    bc.classList.remove('hidden');
+    const current = bc.querySelector('.breadcrumb-current');
+    if (current) current.textContent = AppState.chartDrilldown;
+  }
+}
+
+export function renderProtocolCharts() { updateBreadcrumb(); renderPieChart(); renderBarChart(); }
+
+function renderPieChart() {
+  const c = $('panel-protocols').querySelector('.chart-container'); if (!c) return;
+  const svg = d3.select('#protocol-pie'); svg.selectAll('*').remove();
+  const W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
+  svg.attr('viewBox', `0 0 ${W} ${H}`);
+  const data = getChartData();
+  if (!data.length) return;
+  // Reserve margin for leader-line labels
+  const labelMargin = 40;
+  const radius = Math.max(30, Math.min(W, H) / 2 - labelMargin);
+  const g = svg.append('g').attr('transform', `translate(${W / 2},${H / 2})`);
+  const pie = d3.pie().value(d => d.count).sort(null);
+  const arc = d3.arc().innerRadius(radius * 0.3).outerRadius(radius);
+  const slices = g.selectAll('path').data(pie(data)).join('path')
+    .attr('d', arc).attr('fill', d => chartColor(d.data.protocol))
+    .attr('stroke', 'rgba(0,0,0,0.3)').attr('stroke-width', 1).style('cursor', 'pointer');
+  slices.on('click', (e, d) => {
+    if (AppState.chartDrilldown === null) {
+      AppState.chartDrilldown = d.data.protocol;
+      AppState.filters.transportGroup = d.data.protocol;
+      onFilterChange(); renderTimeline(); renderProtocolCharts();
+    } else {
+      if (AppState.filters.protocolFilter === d.data.protocol) AppState.filters.protocolFilter = null;
+      else AppState.filters.protocolFilter = d.data.protocol;
+      onFilterChange(); renderTimeline();
+    }
+  }).on('mouseover', (e, d) => {
+    const total = d3.sum(data, dd => dd.count);
+    const pct = ((d.data.count / total) * 100).toFixed(1);
+    showTooltip(`<div class="tip-value">${escapeHTML(d.data.protocol)}: ${d.data.count} packets (${pct}%)</div>`, e.pageX, e.pageY, { raw: true });
+  }).on('mouseout', hideTooltip);
+
+  // Labels: inside for large slices, leader lines for small slices
+  const total = d3.sum(data, dd => dd.count);
+  const pieData = pie(data);
+  const innerLabelArc = d3.arc().innerRadius(radius * 0.65).outerRadius(radius * 0.65);
+  const outerPt = d3.arc().innerRadius(radius * 1.03).outerRadius(radius * 1.03);
+  const leaderMid = d3.arc().innerRadius(radius * 1.12).outerRadius(radius * 1.12);
+
+  // Large slices: label inside
+  g.selectAll('.label-inside').data(pieData).join('text')
+    .attr('class', 'label-inside')
+    .attr('transform', d => `translate(${innerLabelArc.centroid(d)})`)
+    .attr('text-anchor', 'middle').attr('font-size', '10px')
+    .attr('fill', 'var(--text-primary)')
+    .text(d => d.data.count / total >= 0.03 ? d.data.protocol : '');
+
+  // Small slices (<3%): leader line + external label
+  const smallSlices = pieData.filter(d => d.data.count / total < 0.03 && d.data.count / total > 0);
+
+  // Leader lines: 3-point polyline from slice edge → elbow → horizontal tail
+  g.selectAll('.leader-line').data(smallSlices).join('polyline')
+    .attr('class', 'leader-line')
+    .attr('fill', 'none')
+    .attr('stroke', 'var(--text-muted)')
+    .attr('stroke-width', 1)
+    .attr('opacity', 0.6)
+    .attr('points', d => {
+      const mid = (d.startAngle + d.endAngle) / 2;
+      const isRight = mid < Math.PI;
+      const p1 = outerPt.centroid(d);
+      const p2 = leaderMid.centroid(d);
+      // Horizontal tail clamped within viewBox
+      const tailX = isRight ? Math.min(p2[0] + 14, W / 2 - 4) : Math.max(p2[0] - 14, -W / 2 + 4);
+      const p3 = [tailX, p2[1]];
+      return [p1, p2, p3].map(p => p.join(',')).join(' ');
+    });
+
+  // External labels clamped so text doesn't overflow
+  g.selectAll('.label-outside').data(smallSlices).join('text')
+    .attr('class', 'label-outside')
+    .attr('font-size', '9px')
+    .attr('fill', 'var(--text-secondary)')
+    .attr('transform', d => {
+      const mid = (d.startAngle + d.endAngle) / 2;
+      const isRight = mid < Math.PI;
+      const p = leaderMid.centroid(d);
+      const tailX = isRight ? Math.min(p[0] + 14, W / 2 - 4) : Math.max(p[0] - 14, -W / 2 + 4);
+      const labelX = tailX + (isRight ? 3 : -3);
+      return `translate(${labelX},${p[1]})`;
+    })
+    .attr('text-anchor', d => {
+      const mid = (d.startAngle + d.endAngle) / 2;
+      return mid < Math.PI ? 'start' : 'end';
+    })
+    .attr('dominant-baseline', 'middle')
+    .text(d => d.data.protocol);
+}
+
+function renderBarChart() {
+  const containers = $('panel-protocols').querySelectorAll('.chart-container'); const c = containers[1]; if (!c) return;
+  const svg = d3.select('#protocol-bar'); svg.selectAll('*').remove();
+  const W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
+  svg.attr('viewBox', `0 0 ${W} ${H}`);
+  const data = getChartData().slice(0, 8);
+  if (!data.length) return;
+  const m = { top: 10, right: 10, bottom: 30, left: 50 };
+  const x = d3.scaleBand().domain(data.map(d => d.protocol)).range([m.left, W - m.right]).padding(0.3);
+  const y = d3.scaleLinear().domain([0, d3.max(data, d => d.count)]).nice().range([H - m.bottom, m.top]);
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - m.bottom})`).call(d3.axisBottom(x).tickSize(0));
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2s')));
+  const bars = svg.selectAll('.bar').data(data).join('rect').attr('class', 'bar')
+    .attr('x', d => x(d.protocol)).attr('y', d => y(d.count))
+    .attr('width', x.bandwidth()).attr('height', d => H - m.bottom - y(d.count))
+    .attr('fill', d => chartColor(d.protocol)).attr('rx', 3).style('cursor', 'pointer');
+  bars.on('click', (e, d) => {
+    if (AppState.chartDrilldown === null) {
+      AppState.chartDrilldown = d.protocol;
+      AppState.filters.transportGroup = d.protocol;
+      onFilterChange(); renderTimeline(); renderProtocolCharts();
+    } else {
+      if (AppState.filters.protocolFilter === d.protocol) AppState.filters.protocolFilter = null;
+      else AppState.filters.protocolFilter = d.protocol;
+      onFilterChange(); renderTimeline();
+    }
+  }).on('mouseover', (e, d) => {
+    showTooltip(`<div class="tip-value">${escapeHTML(d.protocol)}: ${d.count} packets</div>`, e.pageX, e.pageY, { raw: true });
+  }).on('mouseout', hideTooltip);
 }
 
 // ===== Packet Table =====
