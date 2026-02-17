@@ -5,6 +5,13 @@
 
 const PcapParser = (() => {
 
+  // --- Constants ---
+  const MAX_PACKETS = 2_000_000; // Safety limit: prevent memory exhaustion from huge files
+  const MAX_PCAPNG_BLOCKS = 10_000_000; // Safety limit: prevent DoS from tiny-block pcapng files
+
+  // Reusable TextDecoder instance (avoid allocating ~25 new instances per packet)
+  const _utf8Decoder = new TextDecoder('utf-8', { fatal: false });
+
   // --- Helper utilities ---
 
   function formatMAC(bytes, offset) {
@@ -121,9 +128,15 @@ const PcapParser = (() => {
     let iterations = 0;
     while (extHeaders.has(nextHeader) && iterations < 10) {
       if (bytes.length < transportOffset + 2) break;
+      const currentHeader = nextHeader;
       const extLen = bytes[transportOffset + 1];
       nextHeader = bytes[transportOffset];
-      transportOffset += (extLen + 1) * 8;
+      // AH (51) uses (len + 2) * 4; all others use (len + 1) * 8
+      if (currentHeader === 51) {
+        transportOffset += (extLen + 2) * 4;
+      } else {
+        transportOffset += (extLen + 1) * 8;
+      }
       iterations++;
     }
     return {
@@ -222,6 +235,7 @@ const PcapParser = (() => {
     let pos = offset;
     let jumped = false;
     let iterations = 0;
+    const visited = new Set();
     while (pos < maxOffset && iterations < 50) {
       iterations++;
       const len = bytes[pos];
@@ -229,6 +243,9 @@ const PcapParser = (() => {
       if ((len & 0xC0) === 0xC0) {
         if (pos + 1 >= maxOffset) break;
         const ptr = ((len & 0x3F) << 8) | bytes[pos + 1];
+        // Validate pointer: must point within the DNS message and not create a cycle
+        if (ptr >= maxOffset || visited.has(ptr)) break;
+        visited.add(ptr);
         if (!jumped) pos += 2;
         jumped = true;
         pos = ptr;
@@ -318,7 +335,7 @@ const PcapParser = (() => {
   function parseHTTP(bytes, offset, length) {
     if (length < 4) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const firstLine = str.split('\r\n')[0] || str.split('\n')[0];
       if (/^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|CONNECT)\s/.test(firstLine)) {
         const parts = firstLine.split(' ');
@@ -383,7 +400,7 @@ const PcapParser = (() => {
     if ((opcode === 1 || opcode === 2) && length > 2) {
       let end = offset + 2;
       while (end < offset + length && bytes[end] !== 0) end++;
-      try { filename = new TextDecoder().decode(bytes.slice(offset + 2, end)); } catch (e) { /* ignore */ }
+      try { filename = _utf8Decoder.decode(bytes.subarray(offset + 2, end)); } catch (e) { /* ignore */ }
     }
     let blockNum = null;
     if ((opcode === 3 || opcode === 4) && length >= 4) blockNum = getUint16BE(bytes, offset + 2);
@@ -439,7 +456,7 @@ const PcapParser = (() => {
   function parseSMTP(bytes, offset, length) {
     if (length < 4) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       // Server response: "220 ...", "250 ...", "354 ...", "550 ..."
       const respMatch = line.match(/^(\d{3})([ \-])(.*)$/);
@@ -454,7 +471,7 @@ const PcapParser = (() => {
   function parseFTP(bytes, offset, length) {
     if (length < 3) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       // Server response: "220 Welcome", "230 Login successful", "550 No such file"
       const respMatch = line.match(/^(\d{3})([ \-])(.*)$/);
@@ -495,7 +512,7 @@ const PcapParser = (() => {
   function parseSSD(bytes, offset, length) {
     if (length < 10) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || '';
       if (/^(M-SEARCH|NOTIFY|HTTP\/1\.1 200)/i.test(line)) {
         const method = line.startsWith('M-SEARCH') ? 'M-SEARCH' : line.startsWith('NOTIFY') ? 'NOTIFY' : 'Response';
@@ -553,7 +570,7 @@ const PcapParser = (() => {
     if (pos < offset + length && bytes[pos] === 0x04) {
       const cLen = bytes[pos + 1];
       if (cLen > 0 && pos + 2 + cLen <= offset + length) {
-        try { community = new TextDecoder().decode(bytes.slice(pos + 2, pos + 2 + cLen)); } catch (e) {}
+        try { community = _utf8Decoder.decode(bytes.subarray(pos + 2, pos + 2 + cLen)); } catch (e) {}
       }
       pos += 2 + cLen;
     }
@@ -571,7 +588,7 @@ const PcapParser = (() => {
   function parseSyslog(bytes, offset, length) {
     if (length < 3) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const m = str.match(/^<(\d{1,3})>/);
       if (!m) return null;
       const pri = parseInt(m[1]);
@@ -587,7 +604,7 @@ const PcapParser = (() => {
   function parseSIPMsg(bytes, offset, length) {
     if (length < 10) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 300, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 300, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       const reqMatch = line.match(/^(INVITE|ACK|BYE|CANCEL|REGISTER|OPTIONS|SUBSCRIBE|NOTIFY|PUBLISH|INFO|REFER|MESSAGE|UPDATE|PRACK)\s+(.+)\s+SIP\/2\.0/);
       if (reqMatch) return { type: 'request', method: reqMatch[1], uri: reqMatch[2].slice(0, 60) };
@@ -741,7 +758,7 @@ const PcapParser = (() => {
   function parseIMAP(bytes, offset, length) {
     if (length < 4) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       // Untagged server responses: * OK, * NO, * FLAGS, * 5 EXISTS, etc.
       if (/^\*\s+(OK|NO|BAD|BYE|PREAUTH|FLAGS|LIST|LSUB|SEARCH|STATUS|CAPABILITY|EXISTS|RECENT|EXPUNGE|FETCH|\d+\s+(EXISTS|RECENT|EXPUNGE|FETCH))\b/i.test(line))
@@ -760,7 +777,7 @@ const PcapParser = (() => {
   function parsePOP3(bytes, offset, length) {
     if (length < 3) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       if (/^\+OK\b/i.test(line)) return { type: 'response', status: '+OK', detail: line.slice(3).trim().slice(0, 60) };
       if (/^-ERR\b/i.test(line)) return { type: 'response', status: '-ERR', detail: line.slice(4).trim().slice(0, 60) };
@@ -830,7 +847,7 @@ const PcapParser = (() => {
   function parseRTSP(bytes, offset, length) {
     if (length < 8) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       const reqMatch = line.match(/^(OPTIONS|DESCRIBE|SETUP|PLAY|PAUSE|TEARDOWN|ANNOUNCE|RECORD|GET_PARAMETER|SET_PARAMETER)\s+(.+)\s+RTSP\/1\.0/);
       if (reqMatch) return { type: 'request', method: reqMatch[1], url: reqMatch[2].slice(0, 60) };
@@ -860,7 +877,9 @@ const PcapParser = (() => {
     if (length < 5) return null;
     const tag = bytes[offset];
     const msgLen = getUint32BE(bytes, offset + 1);
-    const TAGS = { 0x52: 'Authentication', 0x4b: 'BackendKeyData', 0x5a: 'ReadyForQuery', 0x54: 'RowDescription', 0x44: 'DataRow', 0x43: 'CommandComplete', 0x45: 'ErrorResponse', 0x4e: 'NoticeResponse', 0x51: 'Query', 0x50: 'Parse', 0x42: 'Bind', 0x44: 'Describe', 0x45: 'Execute', 0x53: 'ParameterStatus', 0x70: 'PasswordMessage', 0x58: 'Terminate' };
+    // Note: 0x44='D' is DataRow (server) or Describe (client); 0x45='E' is ErrorResponse (server) or Execute (client)
+    // In a packet analyzer we can't distinguish direction, so we use the server-side interpretation (more common)
+    const TAGS = { 0x52: 'Authentication', 0x4b: 'BackendKeyData', 0x5a: 'ReadyForQuery', 0x54: 'RowDescription', 0x44: 'DataRow/Describe', 0x43: 'CommandComplete', 0x45: 'ErrorResponse/Execute', 0x4e: 'NoticeResponse', 0x51: 'Query', 0x50: 'Parse', 0x42: 'Bind', 0x53: 'ParameterStatus/Sync', 0x48: 'Flush', 0x70: 'PasswordMessage', 0x58: 'Terminate', 0x64: 'CopyData', 0x63: 'CopyDone', 0x66: 'CopyFail' };
     const name = TAGS[tag];
     if (!name && tag !== 0) return null;
     // Startup message (no type byte, starts with length then version 196608 = 3.0)
@@ -880,7 +899,7 @@ const PcapParser = (() => {
     // RESP protocol: +, -, :, $, *
     if (first !== 0x2B && first !== 0x2D && first !== 0x3A && first !== 0x24 && first !== 0x2A) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 100, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 100, offset + length)));
       const line = str.split('\r\n')[0] || '';
       const TYPES = { '+': 'SimpleString', '-': 'Error', ':': 'Integer', '$': 'BulkString', '*': 'Array' };
       const type = TYPES[String.fromCharCode(first)];
@@ -920,7 +939,7 @@ const PcapParser = (() => {
     }
     // Text protocol
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 100, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 100, offset + length)));
       const line = str.split('\r\n')[0] || '';
       const cmdMatch = line.match(/^(get|gets|set|add|replace|append|prepend|cas|delete|incr|decr|stats|flush_all|version|quit|touch)\b/i);
       if (cmdMatch) return { protocol: 'text', type: 'command', command: cmdMatch[1].toLowerCase() };
@@ -949,7 +968,7 @@ const PcapParser = (() => {
         const protoNameLen = getUint16BE(bytes, pos);
         if (protoNameLen === 4 && pos + 2 + 4 <= offset + length) {
           try {
-            const name = new TextDecoder().decode(bytes.slice(pos + 2, pos + 6));
+            const name = _utf8Decoder.decode(bytes.subarray(pos + 2, pos + 6));
             if (name !== 'MQTT' && name !== 'MQIs') return null;
           } catch (e) { return null; }
         }
@@ -995,7 +1014,7 @@ const PcapParser = (() => {
     }
     // Text data
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 60, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 60, offset + length)));
       if (/[^\x00-\x1F\x7F-\xFF]/.test(str)) return { type: 'data', preview: str.replace(/[\x00-\x1F\x7F-\xFF]/g, '.').slice(0, 40) };
     } catch (e) {}
     return null;
@@ -1004,7 +1023,7 @@ const PcapParser = (() => {
   function parseIRC(bytes, offset, length) {
     if (length < 4) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       const prefixMatch = line.match(/^:(\S+)\s+(\S+)\s*(.*)/);
       if (prefixMatch) return { type: 'message', prefix: prefixMatch[1].slice(0, 30), command: prefixMatch[2], params: prefixMatch[3].slice(0, 50) };
@@ -1018,7 +1037,7 @@ const PcapParser = (() => {
   function parseXMPP(bytes, offset, length) {
     if (length < 5) return null;
     try {
-      const str = new TextDecoder('utf-8').decode(bytes.slice(offset, Math.min(offset + 300, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 300, offset + length)));
       if (/<\?xml/.test(str) && /jabber|xmpp/i.test(str)) return { type: 'stream', element: 'xml-declaration' };
       if (/<stream:stream/.test(str)) return { type: 'stream', element: 'stream:stream' };
       const tagMatch = str.match(/<(message|presence|iq)\b([^>]*)>/);
@@ -1241,7 +1260,7 @@ const PcapParser = (() => {
     // VNC protocol version: "RFB 003.008\n"
     if (bytes[offset] === 0x52 && bytes[offset + 1] === 0x46 && bytes[offset + 2] === 0x42 && bytes[offset + 3] === 0x20) {
       try {
-        const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 20, offset + length)));
+        const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 20, offset + length)));
         return { type: 'ProtocolVersion', version: str.trim() };
       } catch (e) {}
     }
@@ -1261,7 +1280,7 @@ const PcapParser = (() => {
   function parseWHOIS(bytes, offset, length) {
     if (length < 3) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || str.split('\n')[0];
       // Query is a single domain/IP line
       if (/^[a-zA-Z0-9.\-]+\s*$/.test(line) && line.length < 80) return { type: 'query', domain: line.trim() };
@@ -1284,7 +1303,7 @@ const PcapParser = (() => {
   function parseHTTPProxy(bytes, offset, length) {
     if (length < 8) return null;
     try {
-      const str = new TextDecoder().decode(bytes.slice(offset, Math.min(offset + 200, offset + length)));
+      const str = _utf8Decoder.decode(bytes.subarray(offset, Math.min(offset + 200, offset + length)));
       const line = str.split('\r\n')[0] || '';
       if (/^CONNECT\s+\S+:\d+\s+HTTP\/1\.[01]/.test(line)) return { type: 'CONNECT', target: line.split(' ')[1] || '' };
     } catch (e) {}
@@ -1326,7 +1345,7 @@ const PcapParser = (() => {
       const cmdLen = bytes[offset + 1];
       if (cmdLen > 0 && cmdLen < length) {
         try {
-          const cmdName = new TextDecoder().decode(bytes.slice(offset + 2, Math.min(offset + 2 + cmdLen, offset + 20)));
+          const cmdName = _utf8Decoder.decode(bytes.subarray(offset + 2, Math.min(offset + 2 + cmdLen, offset + 20)));
           return { type: 'Command', command: cmdName };
         } catch (e) {}
       }
@@ -1348,7 +1367,7 @@ const PcapParser = (() => {
       const tlvLen = getUint16BE(bytes, pos + 2);
       if (tlvLen < 4 || pos + tlvLen > end) break;
       if (tlvType === 1) { // Device ID
-        try { deviceId = new TextDecoder().decode(bytes.slice(pos + 4, pos + tlvLen)); } catch (e) {}
+        try { deviceId = _utf8Decoder.decode(bytes.subarray(pos + 4, pos + tlvLen)); } catch (e) {}
       }
       pos += tlvLen;
     }
@@ -1415,7 +1434,7 @@ const PcapParser = (() => {
     // BitTorrent handshake: 0x13 + "BitTorrent protocol"
     if (bytes[offset] === 0x13 && length >= 68) {
       try {
-        const proto = new TextDecoder().decode(bytes.slice(offset + 1, offset + 20));
+        const proto = _utf8Decoder.decode(bytes.subarray(offset + 1, offset + 20));
         if (proto === 'BitTorrent protocol') return { type: 'Handshake' };
       } catch (e) {}
     }
@@ -1546,13 +1565,13 @@ const PcapParser = (() => {
       if (dataStart + tlvLen > end) break;
       if (tlvType === 1 && tlvLen > 1) {
         // Chassis ID
-        try { chassisId = new TextDecoder().decode(bytes.slice(dataStart + 1, dataStart + tlvLen)); } catch (e) {}
+        try { chassisId = _utf8Decoder.decode(bytes.subarray(dataStart + 1, dataStart + tlvLen)); } catch (e) {}
       }
       if (tlvType === 2 && tlvLen > 1) {
-        try { portId = new TextDecoder().decode(bytes.slice(dataStart + 1, dataStart + tlvLen)); } catch (e) {}
+        try { portId = _utf8Decoder.decode(bytes.subarray(dataStart + 1, dataStart + tlvLen)); } catch (e) {}
       }
       if (tlvType === 5) {
-        try { sysName = new TextDecoder().decode(bytes.slice(dataStart, dataStart + tlvLen)); } catch (e) {}
+        try { sysName = _utf8Decoder.decode(bytes.subarray(dataStart, dataStart + tlvLen)); } catch (e) {}
       }
       pos = dataStart + tlvLen;
     }
@@ -1798,9 +1817,9 @@ const PcapParser = (() => {
       apply(t,pkt){ const hs=t.handshakeType?' '+t.handshakeType:''; pkt.info=`IMAPS ${t.version} ${t.contentType}${hs}`; pkt.layers.imaps=t; }},
     { name:'POP3S', transport:'tcp', ports:[995], parse:parseTLS,
       apply(t,pkt){ const hs=t.handshakeType?' '+t.handshakeType:''; pkt.info=`POP3S ${t.version} ${t.contentType}${hs}`; pkt.layers.pop3s=t; }},
-    { name:'Finger', transport:'tcp', ports:[79], parse(b,o,l){ if(l<2)return null; try{ const s=new TextDecoder().decode(b.slice(o,Math.min(o+80,o+l))); const line=s.split('\r\n')[0]||s.split('\n')[0]; if(/^[a-zA-Z0-9@.\- ]*$/.test(line))return{query:line.trim()}; }catch(e){} return null; },
+    { name:'Finger', transport:'tcp', ports:[79], parse(b,o,l){ if(l<2)return null; try{ const s=_utf8Decoder.decode(b.slice(o,Math.min(o+80,o+l))); const line=s.split('\r\n')[0]||s.split('\n')[0]; if(/^[a-zA-Z0-9@.\- ]*$/.test(line))return{query:line.trim()}; }catch(e){} return null; },
       apply(f,pkt){ pkt.info=`Finger${f.query?' '+f.query:''}`; pkt.layers.finger=f; }},
-    { name:'Gopher', transport:'tcp', ports:[70], parse(b,o,l){ if(l<1)return null; try{ const s=new TextDecoder().decode(b.slice(o,Math.min(o+80,o+l))); const line=s.split('\r\n')[0]||s.split('\n')[0]; return{selector:line.slice(0,60)}; }catch(e){} return null; },
+    { name:'Gopher', transport:'tcp', ports:[70], parse(b,o,l){ if(l<1)return null; try{ const s=_utf8Decoder.decode(b.slice(o,Math.min(o+80,o+l))); const line=s.split('\r\n')[0]||s.split('\n')[0]; return{selector:line.slice(0,60)}; }catch(e){} return null; },
       apply(g,pkt){ pkt.info=`Gopher ${g.selector||'/'}`; pkt.layers.gopher=g; }},
   ];
 
@@ -1861,17 +1880,12 @@ const PcapParser = (() => {
   const ETHERTYPE_MAP = new Map();
   for (const proto of ETHERTYPE_PROTOCOLS) ETHERTYPE_MAP.set(proto.etherType, proto);
 
-  // DEBUG: log registry sizes at init
-  if (typeof console !== 'undefined') {
-    console.log('[PcapParser] Registry initialized:', APP_PROTOCOLS.length, 'app protocols,', IP_PROTO_PROTOCOLS.length, 'IP protos,', ETHERTYPE_PROTOCOLS.length, 'EtherType protos');
-    console.log('[PcapParser] TCP port map:', TCP_PORT_PROTOCOLS.size, 'ports, UDP port map:', UDP_PORT_PROTOCOLS.size, 'ports');
-  }
 
   // --- Main packet dissection ---
 
   function dissectPacket(bytes, linkType) {
     const packet = {
-      rawBytes: bytes, // keep view reference (no copy) for hex dump
+      rawBytes: new Uint8Array(bytes), // copy packet bytes to release file ArrayBuffer for GC
       srcMAC: null, dstMAC: null, etherType: null,
       srcIP: null, dstIP: null, ipVersion: null, ttl: null,
       srcPort: null, dstPort: null, tcpFlags: null,
@@ -1974,7 +1988,6 @@ const PcapParser = (() => {
             packet.info = `EtherType 0x${etherType.toString(16).padStart(4, '0')}`;
           }
         } catch (e) {
-          console.error(`[PcapParser] Error parsing EtherType ${ethProto.name}:`, e.message);
           packet.protocol = 'Other';
           packet.info = `EtherType 0x${etherType.toString(16).padStart(4, '0')}`;
         }
@@ -2020,16 +2033,15 @@ const PcapParser = (() => {
 
       // Registry-based application protocol detection
       if (payloadLen > 0) {
-        const candidates = TCP_PORT_PROTOCOLS.get(tcp.srcPort) || TCP_PORT_PROTOCOLS.get(tcp.dstPort);
-        if (!candidates && !packet._debugLogged) {
-          packet._debugLogged = true;
-          if (typeof window !== 'undefined' && !window._pcapDebugTCP) {
-            window._pcapDebugTCP = true;
-            console.warn('[PcapParser DEBUG] TCP port lookup miss. srcPort:', tcp.srcPort, 'dstPort:', tcp.dstPort, 'TCP_PORT_PROTOCOLS size:', TCP_PORT_PROTOCOLS.size, 'payloadLen:', payloadLen);
-            console.warn('[PcapParser DEBUG] Sample TCP ports in map:', [...TCP_PORT_PROTOCOLS.keys()].slice(0, 20));
-          }
+        const srcCandidates = TCP_PORT_PROTOCOLS.get(tcp.srcPort);
+        const dstCandidates = TCP_PORT_PROTOCOLS.get(tcp.dstPort);
+        // Merge both port candidate lists (dedup via Set for shared-port protocols)
+        const seen = new Set();
+        const candidates = [];
+        for (const list of [dstCandidates, srcCandidates]) {
+          if (list) for (const p of list) { if (!seen.has(p)) { seen.add(p); candidates.push(p); } }
         }
-        if (candidates) {
+        if (candidates.length > 0) {
           for (const proto of candidates) {
             try {
               const parsed = proto.parse(bytes, tcp.payloadOffset, payloadLen);
@@ -2039,7 +2051,7 @@ const PcapParser = (() => {
                 break;
               }
             } catch (e) {
-              console.error(`[PcapParser] Error parsing ${proto.name}:`, e.message);
+              // Silently skip parse errors for protocol candidates
             }
           }
         }
@@ -2055,16 +2067,14 @@ const PcapParser = (() => {
 
       // Registry-based application protocol detection
       if (udp.payloadLength > 0) {
-        const candidates = UDP_PORT_PROTOCOLS.get(udp.srcPort) || UDP_PORT_PROTOCOLS.get(udp.dstPort);
-        if (!candidates && !packet._debugLogged) {
-          packet._debugLogged = true;
-          if (typeof window !== 'undefined' && !window._pcapDebugUDP) {
-            window._pcapDebugUDP = true;
-            console.warn('[PcapParser DEBUG] UDP port lookup miss. srcPort:', udp.srcPort, 'dstPort:', udp.dstPort, 'UDP_PORT_PROTOCOLS size:', UDP_PORT_PROTOCOLS.size, 'payloadLen:', udp.payloadLength);
-            console.warn('[PcapParser DEBUG] Sample UDP ports in map:', [...UDP_PORT_PROTOCOLS.keys()].slice(0, 20));
-          }
+        const srcCandidates = UDP_PORT_PROTOCOLS.get(udp.srcPort);
+        const dstCandidates = UDP_PORT_PROTOCOLS.get(udp.dstPort);
+        const seen = new Set();
+        const candidates = [];
+        for (const list of [dstCandidates, srcCandidates]) {
+          if (list) for (const p of list) { if (!seen.has(p)) { seen.add(p); candidates.push(p); } }
         }
-        if (candidates) {
+        if (candidates.length > 0) {
           for (const proto of candidates) {
             try {
               const parsed = proto.parse(bytes, udp.payloadOffset, udp.payloadLength);
@@ -2074,7 +2084,7 @@ const PcapParser = (() => {
                 break;
               }
             } catch (e) {
-              console.error(`[PcapParser] Error parsing ${proto.name}:`, e.message);
+              // Silently skip parse errors for protocol candidates
             }
           }
         }
@@ -2106,7 +2116,6 @@ const PcapParser = (() => {
             packet.info = `IP Protocol ${protocol}`;
           }
         } catch (e) {
-          console.error(`[PcapParser] Error parsing IP proto ${ipProto.name}:`, e.message);
           packet.protocol = 'Other';
           packet.info = `IP Protocol ${protocol}`;
         }
@@ -2137,7 +2146,7 @@ const PcapParser = (() => {
     const packets = [];
     let offset = 24;
     let index = 1;
-    while (offset + 16 <= buffer.byteLength) {
+    while (offset + 16 <= buffer.byteLength && packets.length < MAX_PACKETS) {
       const tsSec = dv.getUint32(offset, le);
       const tsUSec = dv.getUint32(offset + 4, le);
       const inclLen = dv.getUint32(offset + 8, le);
@@ -2164,7 +2173,9 @@ const PcapParser = (() => {
     const packets = [];
     let index = 1;
     let offset = 0;
-    while (offset + 8 <= buffer.byteLength) {
+    let blockCount = 0;
+    while (offset + 8 <= buffer.byteLength && blockCount < MAX_PCAPNG_BLOCKS && packets.length < MAX_PACKETS) {
+      blockCount++;
       let blockType = dv.getUint32(offset, le);
       let blockLen = dv.getUint32(offset + 4, le);
       if (blockType === 0x0A0D0D0A || blockType === 0x0D0D0A0A) {

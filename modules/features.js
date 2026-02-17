@@ -73,7 +73,7 @@ export function followTCPStream(){
   let html='';let totalBytes=0;
   for(const sp of streamPkts){
     if(sp.tcpPayloadLength>0&&sp.rawBytes){
-      const payload=sp.rawBytes.slice(sp.tcpPayloadOffset,sp.tcpPayloadOffset+sp.tcpPayloadLength);
+      const payload=sp.rawBytes.subarray(sp.tcpPayloadOffset,sp.tcpPayloadOffset+sp.tcpPayloadLength);
       const isClient=(sp.srcIP+':'+sp.srcPort)===client;
       let text='';for(let i=0;i<payload.length;i++){const c=payload[i];text+=c>=32&&c<=126?String.fromCharCode(c):c===10?'\n':c===13?'':'.'}
       html+=`<span class="${isClient?'stream-client':'stream-server'}">${escapeHTML(text)}</span>`;
@@ -91,7 +91,7 @@ export function showConversations(){
   const conns=[...AppState.connections.values()].sort((a,b)=>b.bytes-a.bytes);
   tbody.innerHTML=conns.map(c=>{
     const dur=(c.lastTs-c.firstTs)/1000;
-    return `<tr><td>${escapeHTML(c.a)}</td><td>${escapeHTML(c.b)}</td><td>${c.packets}</td><td>${formatBytes(c.bytes)}</td><td>${dur.toFixed(2)}s</td><td>${[...c.protocols].join(', ')}</td></tr>`;
+    return `<tr><td>${escapeHTML(c.a)}</td><td>${escapeHTML(c.b)}</td><td>${c.packets}</td><td>${formatBytes(c.bytes)}</td><td>${dur.toFixed(2)}s</td><td>${escapeHTML([...c.protocols].join(', '))}</td></tr>`;
   }).join('');
   els.conversationsModal.classList.remove('hidden');
 }
@@ -382,8 +382,8 @@ export function showExtractions(){
     for(;idx<chunkEnd;idx++){
       const p=packets[idx];
       if(p.tcpPayloadLength>0&&p.rawBytes){
-        const payload=p.rawBytes.slice(p.tcpPayloadOffset,Math.min(p.tcpPayloadOffset+p.tcpPayloadLength,p.tcpPayloadOffset+2000));
-        let text='';try{text=new TextDecoder('ascii',{fatal:false}).decode(payload);}catch{}
+        const payload=p.rawBytes.subarray(p.tcpPayloadOffset,Math.min(p.tcpPayloadOffset+p.tcpPayloadLength,p.tcpPayloadOffset+2000));
+        let text='';try{text=new TextDecoder().decode(payload);}catch{}
         _extractPacket(p,text,reqUrlMap,results);
       }
     }
@@ -407,12 +407,12 @@ function reconstructHTTPObjects(){
     for(const p of pkts){
       if(p.httpMethod&&p.httpUrl)requestInfo={method:p.httpMethod,url:p.httpUrl,pkt:p.number};
       if(p.tcpPayloadLength>0&&p.rawBytes){
-        const payload=p.rawBytes.slice(p.tcpPayloadOffset,p.tcpPayloadOffset+p.tcpPayloadLength);
+        const payload=p.rawBytes.subarray(p.tcpPayloadOffset,p.tcpPayloadOffset+p.tcpPayloadLength);
         if(payload.length>=5&&payload[0]===72&&payload[1]===84&&payload[2]===84&&payload[3]===80&&payload[4]===47){
           const fullPayload=payload;
           const headerEndIdx=findHeaderEnd(fullPayload);
           if(headerEndIdx>0){
-            const headerStr=new TextDecoder('ascii',{fatal:false}).decode(fullPayload.slice(0,headerEndIdx));
+            const headerStr=new TextDecoder().decode(fullPayload.subarray(0,headerEndIdx));
             const ctMatch=headerStr.match(RE_CONTENT_TYPE);
             const clMatch=headerStr.match(RE_CONTENT_LENGTH);
             const cdMatch=headerStr.match(RE_CONTENT_DISP);
@@ -420,7 +420,7 @@ function reconstructHTTPObjects(){
             if(ctMatch){
               const ct=ctMatch[1].trim();
               const bodyStart=headerEndIdx;
-              const bodyBytes=fullPayload.slice(bodyStart);
+              const bodyBytes=fullPayload.subarray(bodyStart);
               const contentLength=clMatch?parseInt(clMatch[1]):bodyBytes.length;
               const filename=cdMatch?cdMatch[1]:(requestInfo?requestInfo.url.split('/').pop().split('?')[0]:'');
               const status=statusMatch?parseInt(statusMatch[1]):200;

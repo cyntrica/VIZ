@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.1.4
+
+### Security
+- Fixed DNS name pointer validation — pointers now bounds-checked and cycle-detected to prevent out-of-bounds reads
+- Added pcapng block count limit (10M) to prevent DoS from crafted files with millions of tiny blocks
+- Added packet count limit (2M) to both pcap and pcapng parsers to prevent memory exhaustion
+- XSS fix: protocol names now HTML-escaped in protocol filter dropdown and conversations table
+- Race condition fix: table click handler now awaits lazy-loaded features module before using exports
+
+### Performance
+- Shared single TextDecoder instance across all protocol parsers (eliminated ~25 allocations per packet)
+- Replaced all bytes.slice() with bytes.subarray() in parsers — zero-copy views instead of data copies
+- Packet rawBytes now copied to release original file ArrayBuffer for garbage collection
+
+### Parser
+- Fixed IPv6 AH extension header length calculation — AH uses (len+2)×4, not (len+1)×8
+- Fixed TCP/UDP port lookup short-circuit — both srcPort and dstPort candidates now checked
+- Fixed PostgreSQL wire protocol duplicate tag keys (0x44, 0x45, 0x53 now show combined names)
+- Removed debug logging (console.log/warn, window._pcapDebug globals)
+
 ## v0.1.3
 
 ### Features

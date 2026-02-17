@@ -84,7 +84,7 @@ function loadFile(file){
 // ===== Table Controls =====
 function populateProtocolFilter(){
   const protos=[...AppState.protocolStats.keys()].sort();
-  els.tableProtoFilter.innerHTML='<option value="">All Protocols</option>'+protos.map(p=>`<option value="${p}">${p}</option>`).join('');
+  els.tableProtoFilter.innerHTML='<option value="">All Protocols</option>'+protos.map(p=>`<option value="${escapeHTML(p)}">${escapeHTML(p)}</option>`).join('');
 }
 
 function setupTableControls(){

@@ -427,19 +427,22 @@ export function renderPacketTable(){
   els.tableBody.onscroll=debounce(renderVisibleRows,16);
   if(!_tableClickDelegated){
     _tableClickDelegated=true;
-    // Lazy import features to avoid circular dependency
+    // Lazy import features to avoid circular dependency; cache the promise
+    // so click handlers can await it (eliminates race condition)
     let _showPacketDetail, _toggleBookmark, _showNotePopover;
-    import('./features.js').then(mod => {
+    const _featuresReady = import('./features.js').then(mod => {
       _showPacketDetail = mod.showPacketDetail;
       _toggleBookmark = mod.toggleBookmark;
       _showNotePopover = mod.showNotePopover;
     });
-    els.tableBody.addEventListener('click',e=>{
+    els.tableBody.addEventListener('click',async e=>{
       const row=e.target.closest('.table-row');if(!row)return;
       const idx=parseInt(row.dataset.idx,10);if(isNaN(idx))return;
       const p=AppState.filteredPackets[idx];if(!p)return;
-      if(e.target.closest('.col-star')){e.stopPropagation();if(_toggleBookmark)_toggleBookmark(p.number);return;}
-      if(e.target.closest('.col-note')){e.stopPropagation();if(_showNotePopover)_showNotePopover(p.number,e);return;}
+      // Ensure features module is loaded before using its exports
+      if(!_showPacketDetail)await _featuresReady;
+      if(e.target.closest('.col-star')){e.stopPropagation();_toggleBookmark(p.number);return;}
+      if(e.target.closest('.col-note')){e.stopPropagation();_showNotePopover(p.number,e);return;}
       if(e.shiftKey&&AppState.selectedPacketIdx>=0){
         AppState.diffPacketB=p;
         els.btnDiff.classList.remove('hidden');
@@ -447,7 +450,7 @@ export function renderPacketTable(){
         return;
       }
       AppState.selectedPacketIdx=idx;AppState.diffPacketB=null;els.btnDiff.classList.add('hidden');
-      if(_showPacketDetail)_showPacketDetail(p);renderVisibleRows();
+      _showPacketDetail(p);renderVisibleRows();
     });
   }
 }
